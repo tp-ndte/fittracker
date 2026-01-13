@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#2563eb" rx="80"/>
+  <g fill="#ffffff">
+    <!-- Dumbbell icon -->
+    <circle cx="120" cy="256" r="40"/>
+    <circle cx="392" cy="256" r="40"/>
+    <rect x="140" y="240" width="232" height="32" rx="4"/>
+    <!-- Weight plates -->
+    <rect x="80" y="226" width="30" height="60" rx="4"/>
+    <rect x="402" y="226" width="30" height="60" rx="4"/>
+    <!-- Chart line -->
+    <path d="M 100 350 L 150 320 L 200 340 L 250 300 L 300 310 L 350 280 L 400 290"
+          stroke="#ffffff" stroke-width="8" fill="none" stroke-linecap="round"
+          stroke-linejoin="round" opacity="0.6"/>
+  </g>
+</svg>
