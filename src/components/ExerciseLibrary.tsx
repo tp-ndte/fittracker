@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAllExercises, getAllCategories, isCustomExercise, deleteExercise } from '../utils/exerciseUtils';
+import { getAllExercises, getAllCategories, deleteExercise } from '../utils/exerciseUtils';
 import { Exercise } from '../types';
 import { ExerciseEditor } from './ExerciseEditor';
 
@@ -10,24 +10,29 @@ export function ExerciseLibrary() {
   const [showEditor, setShowEditor] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | undefined>(undefined);
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [categories, setCategories] = useState<string[]>(['All']);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const loadExercises = () => {
-    setExercises(getAllExercises());
+  const loadExercises = async () => {
+    const [exerciseData, categoryData] = await Promise.all([
+      getAllExercises(),
+      getAllCategories()
+    ]);
+    setExercises(exerciseData);
+    setCategories(['All', ...categoryData]);
   };
 
   useEffect(() => {
     loadExercises();
   }, []);
 
-  const categories = ['All', ...getAllCategories()];
-
-  const filteredExercises = exercises.filter(ex => {
-    const matchesCategory = selectedCategory === 'All' || ex.category === selectedCategory;
-    const matchesSearch = ex.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ex.muscleGroups.some(mg => mg.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesCategory && matchesSearch;
-  });
+  const filteredExercises = exercises
+    .filter(ex => {
+      const matchesCategory = selectedCategory === 'All' || ex.category === selectedCategory;
+      const matchesSearch = ex.name.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesCategory && matchesSearch;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const handleCreateExercise = () => {
     setEditingExercise(undefined);
@@ -45,10 +50,10 @@ export function ExerciseLibrary() {
     setSelectedExercise(null);
   };
 
-  const handleDeleteExercise = () => {
+  const handleDeleteExercise = async () => {
     if (selectedExercise) {
-      deleteExercise(selectedExercise.id);
-      loadExercises();
+      await deleteExercise(selectedExercise.id);
+      await loadExercises();
       setSelectedExercise(null);
       setShowDeleteConfirm(false);
     }
@@ -109,16 +114,8 @@ export function ExerciseLibrary() {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-lg">{exercise.name}</span>
-                  {isCustomExercise(exercise.id) && (
-                    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                      Custom
-                    </span>
-                  )}
                 </div>
                 <div className="text-sm text-gray-500 mt-1">{exercise.category}</div>
-                <div className="text-sm text-blue-600 mt-1">
-                  {exercise.muscleGroups.join(', ')}
-                </div>
               </div>
               <button
                 onClick={(e) => handleEditExercise(exercise, e)}
@@ -152,14 +149,7 @@ export function ExerciseLibrary() {
           <div className="bg-white w-full h-3/4 sm:h-auto sm:max-h-[80vh] sm:max-w-lg sm:rounded-lg overflow-hidden flex flex-col">
             {/* Header */}
             <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold">{selectedExercise.name}</h2>
-                {isCustomExercise(selectedExercise.id) && (
-                  <span className="px-2 py-0.5 bg-blue-500 text-white rounded-full text-xs font-medium">
-                    Custom
-                  </span>
-                )}
-              </div>
+              <h2 className="text-xl font-bold">{selectedExercise.name}</h2>
               <button onClick={() => { setSelectedExercise(null); setShowDeleteConfirm(false); }} className="text-2xl">
                 &times;
               </button>
@@ -171,21 +161,6 @@ export function ExerciseLibrary() {
                 <h3 className="font-semibold text-gray-700 mb-1">Category</h3>
                 <p className="text-gray-900">{selectedExercise.category}</p>
               </div>
-
-              <div>
-                <h3 className="font-semibold text-gray-700 mb-1">Muscle Groups</h3>
-                <div className="flex flex-wrap gap-2">
-                  {selectedExercise.muscleGroups.map(mg => (
-                    <span
-                      key={mg}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
-                    >
-                      {mg}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
             </div>
 
             {/* Action Buttons */}

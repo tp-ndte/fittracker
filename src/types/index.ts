@@ -3,7 +3,6 @@ export interface Exercise {
   id: string;
   name: string;
   category: string;
-  muscleGroups: string[];
   details?: string; // Free text notes/instructions about the exercise
   isCustom?: boolean;
   isDeleted?: boolean; // For soft-deleting built-in exercises

@@ -1,69 +1,105 @@
 import { Session, Workout, Exercise } from '../types';
-
-const SESSIONS_KEY = 'fittracker_sessions';
-const WORKOUTS_KEY = 'fittracker_workouts';
-const CUSTOM_EXERCISES_KEY = 'fittracker_custom_exercises';
-const DELETED_EXERCISES_KEY = 'fittracker_deleted_exercises';
+import { supabase, getDeviceId } from '../lib/supabase';
 
 // ============================================
 // SESSIONS STORAGE (gym visits)
 // ============================================
 
-export const saveSessions = (sessions: Session[]): void => {
-  try {
-    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
-  } catch (error) {
-    console.error('Error saving sessions:', error);
+export const saveSessions = async (sessions: Session[]): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  // Delete all existing sessions for this device and insert new ones
+  await supabase.from('sessions').delete().eq('device_id', deviceId);
+
+  if (sessions.length > 0) {
+    const rows = sessions.map(s => ({
+      id: s.id,
+      device_id: deviceId,
+      date: s.date,
+      name: s.name,
+      exercises: s.exercises,
+      duration: s.duration,
+      notes: s.notes,
+      workout_id: s.workoutId,
+      workout_name: s.workoutName
+    }));
+
+    await supabase.from('sessions').insert(rows);
   }
 };
 
-export const loadSessions = (): Session[] => {
-  try {
-    const data = localStorage.getItem(SESSIONS_KEY);
-    if (data) return JSON.parse(data);
-    // Migrate from old key if exists
-    const oldData = localStorage.getItem('fittracker_workouts');
-    if (oldData) {
-      const sessions = JSON.parse(oldData);
-      // Migrate templateId/templateName to workoutId/workoutName
-      const migrated = sessions.map((s: any) => ({
-        ...s,
-        workoutId: s.templateId || s.workoutId,
-        workoutName: s.templateName || s.workoutName
-      }));
-      saveSessions(migrated);
-      return migrated;
-    }
-    return [];
-  } catch (error) {
+export const loadSessions = async (): Promise<Session[]> => {
+  const deviceId = getDeviceId();
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('device_id', deviceId)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) {
     console.error('Error loading sessions:', error);
     return [];
   }
+
+  return data.map(row => ({
+    id: row.id,
+    date: row.date,
+    name: row.name,
+    exercises: row.exercises,
+    duration: row.duration,
+    notes: row.notes,
+    workoutId: row.workout_id,
+    workoutName: row.workout_name
+  }));
 };
 
-export const addSession = (session: Session): void => {
-  const sessions = loadSessions();
-  sessions.unshift(session);
-  saveSessions(sessions);
+export const addSession = async (session: Session): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  await supabase.from('sessions').insert({
+    id: session.id,
+    device_id: deviceId,
+    date: session.date,
+    name: session.name,
+    exercises: session.exercises,
+    duration: session.duration,
+    notes: session.notes,
+    workout_id: session.workoutId,
+    workout_name: session.workoutName
+  });
 };
 
-export const updateSession = (sessionId: string, updatedSession: Session): void => {
-  const sessions = loadSessions();
-  const index = sessions.findIndex(s => s.id === sessionId);
-  if (index !== -1) {
-    sessions[index] = updatedSession;
-    saveSessions(sessions);
-  }
+export const updateSession = async (sessionId: string, updatedSession: Session): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  await supabase
+    .from('sessions')
+    .update({
+      date: updatedSession.date,
+      name: updatedSession.name,
+      exercises: updatedSession.exercises,
+      duration: updatedSession.duration,
+      notes: updatedSession.notes,
+      workout_id: updatedSession.workoutId,
+      workout_name: updatedSession.workoutName
+    })
+    .eq('id', sessionId)
+    .eq('device_id', deviceId);
 };
 
-export const deleteSession = (sessionId: string): void => {
-  const sessions = loadSessions();
-  const filtered = sessions.filter(s => s.id !== sessionId);
-  saveSessions(filtered);
+export const deleteSession = async (sessionId: string): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  await supabase
+    .from('sessions')
+    .delete()
+    .eq('id', sessionId)
+    .eq('device_id', deviceId);
 };
 
-export const getSessionsByExercise = (exerciseId: string): Session[] => {
-  const sessions = loadSessions();
+export const getSessionsByExercise = async (exerciseId: string): Promise<Session[]> => {
+  const sessions = await loadSessions();
   return sessions.filter(session =>
     session.exercises.some(ex => ex.exerciseId === exerciseId)
   );
@@ -73,143 +109,361 @@ export const getSessionsByExercise = (exerciseId: string): Session[] => {
 // WORKOUTS STORAGE (saved workout plans like "Leg Day")
 // ============================================
 
-export const saveWorkouts = (workouts: Workout[]): void => {
-  try {
-    localStorage.setItem(WORKOUTS_KEY, JSON.stringify(workouts));
-  } catch (error) {
-    console.error('Error saving workouts:', error);
+export const saveWorkouts = async (workouts: Workout[]): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  // Delete all existing workouts for this device and insert new ones
+  await supabase.from('workouts').delete().eq('device_id', deviceId);
+
+  if (workouts.length > 0) {
+    const rows = workouts.map(w => ({
+      id: w.id,
+      device_id: deviceId,
+      name: w.name,
+      description: w.description,
+      category: w.category,
+      exercises: w.exercises,
+      created_at: w.createdAt,
+      updated_at: w.updatedAt
+    }));
+
+    await supabase.from('workouts').insert(rows);
   }
 };
 
-export const loadWorkouts = (): Workout[] => {
-  try {
-    const data = localStorage.getItem(WORKOUTS_KEY);
-    if (data) return JSON.parse(data);
-    // Migrate from old templates key if exists
-    const oldData = localStorage.getItem('fittracker_templates');
-    if (oldData) {
-      const templates = JSON.parse(oldData);
-      // Add default category if missing
-      const migrated = templates.map((t: any) => ({
-        ...t,
-        category: t.category || 'Strength'
-      }));
-      saveWorkouts(migrated);
-      return migrated;
-    }
-    return [];
-  } catch (error) {
+export const loadWorkouts = async (): Promise<Workout[]> => {
+  const deviceId = getDeviceId();
+
+  const { data, error } = await supabase
+    .from('workouts')
+    .select('*')
+    .eq('device_id', deviceId)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) {
     console.error('Error loading workouts:', error);
     return [];
   }
+
+  return data.map(row => ({
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    category: row.category,
+    exercises: row.exercises,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }));
 };
 
-export const addWorkout = (workout: Workout): void => {
-  const workouts = loadWorkouts();
-  workouts.unshift(workout);
-  saveWorkouts(workouts);
+export const addWorkout = async (workout: Workout): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  await supabase.from('workouts').insert({
+    id: workout.id,
+    device_id: deviceId,
+    name: workout.name,
+    description: workout.description,
+    category: workout.category,
+    exercises: workout.exercises,
+    created_at: workout.createdAt,
+    updated_at: workout.updatedAt
+  });
 };
 
-export const updateWorkout = (workoutId: string, updatedWorkout: Workout): void => {
-  const workouts = loadWorkouts();
-  const index = workouts.findIndex(w => w.id === workoutId);
-  if (index !== -1) {
-    workouts[index] = { ...updatedWorkout, updatedAt: new Date().toISOString() };
-    saveWorkouts(workouts);
+export const updateWorkout = async (workoutId: string, updatedWorkout: Workout): Promise<void> => {
+  const deviceId = getDeviceId();
+  const now = new Date().toISOString();
+
+  await supabase
+    .from('workouts')
+    .update({
+      name: updatedWorkout.name,
+      description: updatedWorkout.description,
+      category: updatedWorkout.category,
+      exercises: updatedWorkout.exercises,
+      updated_at: now
+    })
+    .eq('id', workoutId)
+    .eq('device_id', deviceId);
+};
+
+export const deleteWorkout = async (workoutId: string): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  await supabase
+    .from('workouts')
+    .delete()
+    .eq('id', workoutId)
+    .eq('device_id', deviceId);
+};
+
+export const getWorkoutById = async (workoutId: string): Promise<Workout | undefined> => {
+  const deviceId = getDeviceId();
+
+  const { data, error } = await supabase
+    .from('workouts')
+    .select('*')
+    .eq('id', workoutId)
+    .eq('device_id', deviceId)
+    .single();
+
+  if (error || !data) {
+    return undefined;
   }
-};
 
-export const deleteWorkout = (workoutId: string): void => {
-  const workouts = loadWorkouts();
-  const filtered = workouts.filter(w => w.id !== workoutId);
-  saveWorkouts(filtered);
-};
-
-export const getWorkoutById = (workoutId: string): Workout | undefined => {
-  const workouts = loadWorkouts();
-  return workouts.find(w => w.id === workoutId);
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    category: data.category,
+    exercises: data.exercises,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  };
 };
 
 // ============================================
 // CUSTOM EXERCISES STORAGE
 // ============================================
 
-export const saveCustomExercises = (exercises: Exercise[]): void => {
-  try {
-    localStorage.setItem(CUSTOM_EXERCISES_KEY, JSON.stringify(exercises));
-  } catch (error) {
-    console.error('Error saving custom exercises:', error);
+export const saveCustomExercises = async (exercises: Exercise[]): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  // Delete all existing custom exercises for this device and insert new ones
+  await supabase.from('exercises').delete().eq('device_id', deviceId);
+
+  if (exercises.length > 0) {
+    const rows = exercises.map(e => ({
+      id: e.id,
+      device_id: deviceId,
+      name: e.name,
+      category: e.category,
+      details: e.details,
+      created_at: e.createdAt,
+      updated_at: e.updatedAt
+    }));
+
+    await supabase.from('exercises').insert(rows);
   }
 };
 
-export const loadCustomExercises = (): Exercise[] => {
-  try {
-    const data = localStorage.getItem(CUSTOM_EXERCISES_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
+export const loadCustomExercises = async (): Promise<Exercise[]> => {
+  const deviceId = getDeviceId();
+
+  const { data, error } = await supabase
+    .from('exercises')
+    .select('*')
+    .eq('device_id', deviceId)
+    .order('name', { ascending: true });
+
+  if (error || !data) {
     console.error('Error loading custom exercises:', error);
     return [];
   }
-};
 
-export const addCustomExercise = (exercise: Exercise): void => {
-  const exercises = loadCustomExercises();
-  exercises.push({
-    ...exercise,
+  return data.map(row => ({
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    details: row.details,
     isCustom: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }));
+};
+
+export const addCustomExercise = async (exercise: Exercise): Promise<void> => {
+  const deviceId = getDeviceId();
+  const now = new Date().toISOString();
+
+  await supabase.from('exercises').insert({
+    id: exercise.id,
+    device_id: deviceId,
+    name: exercise.name,
+    category: exercise.category,
+    details: exercise.details,
+    created_at: now,
+    updated_at: now
   });
-  saveCustomExercises(exercises);
 };
 
-export const updateCustomExercise = (exerciseId: string, updatedExercise: Exercise): void => {
-  const exercises = loadCustomExercises();
-  const index = exercises.findIndex(e => e.id === exerciseId);
-  if (index !== -1) {
-    exercises[index] = { ...updatedExercise, updatedAt: new Date().toISOString() };
-    saveCustomExercises(exercises);
-  }
+export const updateCustomExercise = async (exerciseId: string, updatedExercise: Exercise): Promise<void> => {
+  const deviceId = getDeviceId();
+  const now = new Date().toISOString();
+
+  await supabase
+    .from('exercises')
+    .update({
+      name: updatedExercise.name,
+      category: updatedExercise.category,
+      details: updatedExercise.details,
+      updated_at: now
+    })
+    .eq('id', exerciseId)
+    .eq('device_id', deviceId);
 };
 
-export const deleteCustomExercise = (exerciseId: string): void => {
-  const exercises = loadCustomExercises();
-  const filtered = exercises.filter(e => e.id !== exerciseId);
-  saveCustomExercises(filtered);
+export const deleteCustomExercise = async (exerciseId: string): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  await supabase
+    .from('exercises')
+    .delete()
+    .eq('id', exerciseId)
+    .eq('device_id', deviceId);
 };
 
 // ============================================
 // DELETED EXERCISES STORAGE (for soft-deleting built-in exercises)
 // ============================================
 
-export const loadDeletedExerciseIds = (): string[] => {
-  try {
-    const data = localStorage.getItem(DELETED_EXERCISES_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
+export const loadDeletedExerciseIds = async (): Promise<string[]> => {
+  const deviceId = getDeviceId();
+
+  const { data, error } = await supabase
+    .from('deleted_exercises')
+    .select('exercise_id')
+    .eq('device_id', deviceId);
+
+  if (error || !data) {
     console.error('Error loading deleted exercises:', error);
     return [];
   }
+
+  return data.map(row => row.exercise_id);
 };
 
-export const saveDeletedExerciseIds = (ids: string[]): void => {
-  try {
-    localStorage.setItem(DELETED_EXERCISES_KEY, JSON.stringify(ids));
-  } catch (error) {
-    console.error('Error saving deleted exercises:', error);
+export const saveDeletedExerciseIds = async (ids: string[]): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  // Delete all existing and insert new ones
+  await supabase.from('deleted_exercises').delete().eq('device_id', deviceId);
+
+  if (ids.length > 0) {
+    const rows = ids.map(id => ({
+      device_id: deviceId,
+      exercise_id: id
+    }));
+
+    await supabase.from('deleted_exercises').insert(rows);
   }
 };
 
-export const markExerciseAsDeleted = (exerciseId: string): void => {
-  const deletedIds = loadDeletedExerciseIds();
-  if (!deletedIds.includes(exerciseId)) {
-    deletedIds.push(exerciseId);
-    saveDeletedExerciseIds(deletedIds);
-  }
+export const markExerciseAsDeleted = async (exerciseId: string): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  // Use upsert to handle duplicates
+  await supabase.from('deleted_exercises').upsert({
+    device_id: deviceId,
+    exercise_id: exerciseId
+  }, {
+    onConflict: 'device_id,exercise_id'
+  });
 };
 
-export const restoreExercise = (exerciseId: string): void => {
-  const deletedIds = loadDeletedExerciseIds();
-  const filtered = deletedIds.filter(id => id !== exerciseId);
-  saveDeletedExerciseIds(filtered);
+export const restoreExercise = async (exerciseId: string): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  await supabase
+    .from('deleted_exercises')
+    .delete()
+    .eq('device_id', deviceId)
+    .eq('exercise_id', exerciseId);
+};
+
+// ============================================
+// BACKUP & RESTORE
+// ============================================
+
+export interface BackupData {
+  version: number;
+  exportedAt: string;
+  sessions: Session[];
+  workouts: Workout[];
+  customExercises: Exercise[];
+  deletedExerciseIds: string[];
+}
+
+export const exportBackup = async (): Promise<void> => {
+  const [sessions, workouts, customExercises, deletedExerciseIds] = await Promise.all([
+    loadSessions(),
+    loadWorkouts(),
+    loadCustomExercises(),
+    loadDeletedExerciseIds()
+  ]);
+
+  const backup: BackupData = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    sessions,
+    workouts,
+    customExercises,
+    deletedExerciseIds
+  };
+
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const date = new Date().toISOString().split('T')[0];
+  const filename = `fittracker-backup-${date}.json`;
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+export const importBackup = async (file: File): Promise<{ success: boolean; message: string }> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string;
+        const backup: BackupData = JSON.parse(content);
+
+        // Validate backup structure
+        if (!backup.version || !backup.exportedAt) {
+          resolve({ success: false, message: 'Invalid backup file format' });
+          return;
+        }
+
+        // Restore all data
+        const promises: Promise<void>[] = [];
+
+        if (Array.isArray(backup.sessions)) {
+          promises.push(saveSessions(backup.sessions));
+        }
+        if (Array.isArray(backup.workouts)) {
+          promises.push(saveWorkouts(backup.workouts));
+        }
+        if (Array.isArray(backup.customExercises)) {
+          promises.push(saveCustomExercises(backup.customExercises));
+        }
+        if (Array.isArray(backup.deletedExerciseIds)) {
+          promises.push(saveDeletedExerciseIds(backup.deletedExerciseIds));
+        }
+
+        await Promise.all(promises);
+
+        resolve({
+          success: true,
+          message: `Restored backup from ${new Date(backup.exportedAt).toLocaleDateString()}`
+        });
+      } catch (error) {
+        resolve({ success: false, message: 'Failed to parse backup file' });
+      }
+    };
+
+    reader.onerror = () => {
+      resolve({ success: false, message: 'Failed to read file' });
+    };
+
+    reader.readAsText(file);
+  });
 };

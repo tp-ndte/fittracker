@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Workout, WorkoutExercise, Exercise } from '../types';
 import { addWorkout, updateWorkout } from '../utils/storage';
 import { getAllExercises, getAllCategories } from '../utils/exerciseUtils';
@@ -21,9 +21,20 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedForSuperset, setSelectedForSuperset] = useState<Set<string>>(new Set());
   const [supersetMode, setSupersetMode] = useState(false);
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  const [exerciseCategories, setExerciseCategories] = useState<string[]>(['All']);
 
-  const allExercises = getAllExercises();
-  const exerciseCategories = ['All', ...getAllCategories()];
+  useEffect(() => {
+    const loadData = async () => {
+      const [exercisesData, categoriesData] = await Promise.all([
+        getAllExercises(),
+        getAllCategories()
+      ]);
+      setAllExercises(exercisesData);
+      setExerciseCategories(['All', ...categoriesData]);
+    };
+    loadData();
+  }, []);
 
   const filteredExercises = allExercises.filter(ex => {
     const matchesCategory = selectedCategory === 'All' || ex.category === selectedCategory;
@@ -102,7 +113,7 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
     return groups;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       alert('Please enter a workout name');
       return;
@@ -123,9 +134,9 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
     };
 
     if (isEditing) {
-      updateWorkout(workout.id, workoutData);
+      await updateWorkout(workout.id, workoutData);
     } else {
-      addWorkout(workoutData);
+      await addWorkout(workoutData);
     }
 
     onSave();
@@ -468,7 +479,7 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
                     className="w-full text-left p-4 border-b border-gray-200 hover:bg-gray-50"
                   >
                     <div className="font-medium">{ex.name}</div>
-                    <div className="text-sm text-gray-500">{ex.category} - {ex.muscleGroups.join(', ')}</div>
+                    <div className="text-sm text-gray-500">{ex.category}</div>
                   </button>
                 ))
               )}

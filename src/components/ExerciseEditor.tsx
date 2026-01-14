@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Exercise } from '../types';
 import { addCustomExercise, updateCustomExercise } from '../utils/storage';
 import { generateExerciseId, getAllCategories, isCustomExercise, deleteExercise } from '../utils/exerciseUtils';
@@ -11,17 +11,31 @@ interface ExerciseEditorProps {
 
 export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProps) => {
   const isEditing = !!exercise;
-  const isCustom = exercise ? isCustomExercise(exercise.id) : true;
 
   const [name, setName] = useState(exercise?.name || '');
   const [category, setCategory] = useState(exercise?.category || '');
   const [newCategory, setNewCategory] = useState('');
   const [details, setDetails] = useState(exercise?.details || '');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [existingCategories, setExistingCategories] = useState<string[]>([]);
+  const [isCustom, setIsCustom] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const existingCategories = getAllCategories();
+  useEffect(() => {
+    const init = async () => {
+      const categories = await getAllCategories();
+      setExistingCategories(categories);
 
-  const handleSave = () => {
+      if (exercise) {
+        const custom = await isCustomExercise(exercise.id);
+        setIsCustom(custom);
+      }
+      setLoading(false);
+    };
+    init();
+  }, [exercise]);
+
+  const handleSave = async () => {
     const finalCategory = newCategory || category;
     if (!name || !finalCategory) {
       alert('Name and category are required');
@@ -30,7 +44,7 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
 
     if (isEditing && exercise && isCustom) {
       // Update existing custom exercise
-      updateCustomExercise(exercise.id, {
+      await updateCustomExercise(exercise.id, {
         ...exercise,
         name,
         category: finalCategory,
@@ -38,11 +52,10 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
       });
     } else if (!isEditing) {
       // Create new custom exercise
-      addCustomExercise({
+      await addCustomExercise({
         id: generateExerciseId(name),
         name,
         category: finalCategory,
-        muscleGroups: [],
         details: details.trim() || undefined,
         isCustom: true
       });
@@ -51,9 +64,9 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
     onClose();
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (exercise) {
-      deleteExercise(exercise.id);
+      await deleteExercise(exercise.id);
       onSave();
       onClose();
     }
@@ -61,6 +74,16 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
 
   // For built-in exercises, only allow viewing (not editing)
   const canEdit = !isEditing || isCustom;
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-8 rounded-lg">
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50">

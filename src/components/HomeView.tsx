@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Workout, WorkoutExercise } from '../types';
 import { loadWorkouts } from '../utils/storage';
-import { getExerciseById } from '../utils/exerciseUtils';
 import { SessionLogger } from './SessionLogger';
 
 export function HomeView() {
@@ -9,8 +8,9 @@ export function HomeView() {
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const [startingSession, setStartingSession] = useState<Workout | null>(null);
 
-  const loadWorkoutsData = () => {
-    setWorkouts(loadWorkouts());
+  const loadWorkoutsData = async () => {
+    const workoutsData = await loadWorkouts();
+    setWorkouts(workoutsData);
   };
 
   useEffect(() => {
@@ -35,8 +35,6 @@ export function HomeView() {
   };
 
   const renderExercisePreview = (exercise: WorkoutExercise, inSuperset: boolean = false) => {
-    const fullExercise = getExerciseById(exercise.exerciseId);
-
     return (
       <div key={exercise.id} className={`${inSuperset ? 'py-2' : 'py-3'}`}>
         <div className="flex items-start justify-between">
@@ -45,11 +43,6 @@ export function HomeView() {
             <div className="text-sm text-gray-500">
               {exercise.defaultSets} sets x {exercise.defaultReps} reps
             </div>
-            {fullExercise?.muscleGroups && (
-              <div className="text-xs text-blue-600 mt-1">
-                {fullExercise.muscleGroups.join(', ')}
-              </div>
-            )}
           </div>
         </div>
       </div>

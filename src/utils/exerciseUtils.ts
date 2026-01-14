@@ -5,10 +5,10 @@ import { loadCustomExercises, loadDeletedExerciseIds, markExerciseAsDeleted, del
 /**
  * Get all exercises (built-in + custom) excluding deleted ones
  */
-export const getAllExercises = (): Exercise[] => {
+export const getAllExercises = async (): Promise<Exercise[]> => {
   const builtInExercises = EXERCISES;
-  const customExercises = loadCustomExercises();
-  const deletedIds = loadDeletedExerciseIds();
+  const customExercises = await loadCustomExercises();
+  const deletedIds = await loadDeletedExerciseIds();
 
   // Filter out deleted built-in exercises
   const activeBuiltIn = builtInExercises.filter(ex => !deletedIds.includes(ex.id));
@@ -20,30 +20,32 @@ export const getAllExercises = (): Exercise[] => {
 /**
  * Get exercise by ID from merged list
  */
-export const getExerciseById = (id: string): Exercise | undefined => {
-  return getAllExercises().find(ex => ex.id === id);
+export const getExerciseById = async (id: string): Promise<Exercise | undefined> => {
+  const exercises = await getAllExercises();
+  return exercises.find(ex => ex.id === id);
 };
 
 /**
  * Get exercises by category from merged list
  */
-export const getExercisesByCategory = (category: string): Exercise[] => {
-  return getAllExercises().filter(ex => ex.category === category);
+export const getExercisesByCategory = async (category: string): Promise<Exercise[]> => {
+  const exercises = await getAllExercises();
+  return exercises.filter(ex => ex.category === category);
 };
 
 /**
  * Get all unique categories from merged list
  */
-export const getAllCategories = (): string[] => {
-  const exercises = getAllExercises();
+export const getAllCategories = async (): Promise<string[]> => {
+  const exercises = await getAllExercises();
   return Array.from(new Set(exercises.map(ex => ex.category)));
 };
 
 /**
  * Check if exercise is custom
  */
-export const isCustomExercise = (exerciseId: string): boolean => {
-  const customExercises = loadCustomExercises();
+export const isCustomExercise = async (exerciseId: string): Promise<boolean> => {
+  const customExercises = await loadCustomExercises();
   return customExercises.some(ex => ex.id === exerciseId);
 };
 
@@ -57,11 +59,12 @@ export const isBuiltInExercise = (exerciseId: string): boolean => {
 /**
  * Delete any exercise (custom or built-in)
  */
-export const deleteExercise = (exerciseId: string): void => {
-  if (isCustomExercise(exerciseId)) {
-    deleteCustomExercise(exerciseId);
+export const deleteExercise = async (exerciseId: string): Promise<void> => {
+  const isCustom = await isCustomExercise(exerciseId);
+  if (isCustom) {
+    await deleteCustomExercise(exerciseId);
   } else if (isBuiltInExercise(exerciseId)) {
-    markExerciseAsDeleted(exerciseId);
+    await markExerciseAsDeleted(exerciseId);
   }
 };
 
@@ -71,14 +74,4 @@ export const deleteExercise = (exerciseId: string): void => {
 export const generateExerciseId = (name: string): string => {
   const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
   return `custom-${slug}-${Date.now()}`;
-};
-
-/**
- * Get all unique muscle groups from merged list
- */
-export const getAllMuscleGroups = (): string[] => {
-  const exercises = getAllExercises();
-  const muscleGroups = new Set<string>();
-  exercises.forEach(ex => ex.muscleGroups.forEach(mg => muscleGroups.add(mg)));
-  return Array.from(muscleGroups).sort();
 };

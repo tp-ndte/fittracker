@@ -9,8 +9,9 @@ export function WorkoutLibrary() {
   const [editingWorkout, setEditingWorkout] = useState<Workout | undefined>(undefined);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
-  const loadWorkoutsData = () => {
-    setWorkouts(loadWorkouts());
+  const loadWorkoutsData = async () => {
+    const data = await loadWorkouts();
+    setWorkouts(data);
   };
 
   useEffect(() => {
@@ -27,14 +28,14 @@ export function WorkoutLibrary() {
     setShowEditor(true);
   };
 
-  const handleDeleteWorkout = (workoutId: string) => {
-    deleteWorkout(workoutId);
-    loadWorkoutsData();
+  const handleDeleteWorkout = async (workoutId: string) => {
+    await deleteWorkout(workoutId);
+    await loadWorkoutsData();
     setShowDeleteConfirm(null);
   };
 
-  const handleEditorSave = () => {
-    loadWorkoutsData();
+  const handleEditorSave = async () => {
+    await loadWorkoutsData();
     setShowEditor(false);
   };
 

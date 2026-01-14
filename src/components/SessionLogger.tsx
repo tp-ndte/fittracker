@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Session, SessionExercise, Workout } from '../types';
+import { useState, useEffect } from 'react';
+import { Session, SessionExercise, Workout, Exercise } from '../types';
 import { getAllExercises, getAllCategories } from '../utils/exerciseUtils';
 import { addSession, updateSession, deleteSession } from '../utils/storage';
 import { format } from 'date-fns';
@@ -72,9 +72,20 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
   const [workoutId] = useState<string | undefined>(initial.workoutId);
   const [workoutName] = useState<string | undefined>(initial.workoutName);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  const [categories, setCategories] = useState<string[]>(['All']);
 
-  const allExercises = getAllExercises();
-  const categories = ['All', ...getAllCategories()];
+  useEffect(() => {
+    const loadData = async () => {
+      const [exercisesData, categoriesData] = await Promise.all([
+        getAllExercises(),
+        getAllCategories()
+      ]);
+      setAllExercises(exercisesData);
+      setCategories(['All', ...categoriesData]);
+    };
+    loadData();
+  }, []);
 
   const addExercise = (exerciseId: string) => {
     const exercise = allExercises.find(ex => ex.id === exerciseId);
@@ -161,7 +172,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!sessionName.trim() || exercises.length === 0) {
       alert('Please add a session name and at least one exercise');
       return;
@@ -178,18 +189,18 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     };
 
     if (session) {
-      updateSession(session.id, sessionData);
+      await updateSession(session.id, sessionData);
     } else {
-      addSession(sessionData);
+      await addSession(sessionData);
     }
 
     onSave();
     onClose();
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (session) {
-      deleteSession(session.id);
+      await deleteSession(session.id);
       onSave();
       onClose();
     }
@@ -462,7 +473,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
                   className="w-full text-left p-4 border-b border-gray-200 hover:bg-gray-50"
                 >
                   <div className="font-semibold">{exercise.name}</div>
-                  <div className="text-sm text-gray-500">{exercise.category} - {exercise.muscleGroups.join(', ')}</div>
+                  <div className="text-sm text-gray-500">{exercise.category}</div>
                 </button>
               ))}
             </div>
