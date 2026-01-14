@@ -6,6 +6,10 @@ import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { HistoryView } from './components/HistoryView';
 import { exportBackup, importBackup } from './utils/storage';
 
+// Debug: Check environment variables
+const DEBUG_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const DEBUG_SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 function App() {
   const [currentView, setCurrentView] = useState<View>('home');
   const [showSettings, setShowSettings] = useState(false);
@@ -63,6 +67,13 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
+      {/* DEBUG BANNER - REMOVE AFTER TESTING */}
+      <div className="bg-yellow-400 text-black text-xs p-2 text-center font-mono">
+        DEBUG: URL={DEBUG_SUPABASE_URL ? 'true' : 'false'} |
+        KEY={DEBUG_SUPABASE_KEY ? 'true' : 'false'} |
+        URL_START={DEBUG_SUPABASE_URL ? DEBUG_SUPABASE_URL.substring(0, 10) + '...' : 'N/A'}
+      </div>
+
       {/* Header */}
       <header className="bg-blue-600 text-white p-4 safe-top shadow-lg">
         <div className="flex items-center justify-between">
