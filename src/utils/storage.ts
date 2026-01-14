@@ -250,6 +250,7 @@ export const saveCustomExercises = async (exercises: Exercise[]): Promise<void> 
 
 export const loadCustomExercises = async (): Promise<Exercise[]> => {
   const deviceId = getDeviceId();
+  console.log('[Storage] loadCustomExercises called, deviceId:', deviceId);
 
   const { data, error } = await supabase
     .from('exercises')
@@ -257,8 +258,10 @@ export const loadCustomExercises = async (): Promise<Exercise[]> => {
     .eq('device_id', deviceId)
     .order('name', { ascending: true });
 
+  console.log('[Storage] loadCustomExercises result:', { dataCount: data?.length, error });
+
   if (error || !data) {
-    console.error('Error loading custom exercises:', error);
+    console.error('[Storage] Error loading custom exercises:', error);
     return [];
   }
 

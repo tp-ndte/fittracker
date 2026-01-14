@@ -1,13 +1,22 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Debug logging for production
+console.log('[Supabase] Initializing...');
+console.log('[Supabase] URL defined:', !!supabaseUrl);
+console.log('[Supabase] Key defined:', !!supabaseAnonKey);
+
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+  console.error('[Supabase] Missing environment variables!');
+  console.error('[Supabase] VITE_SUPABASE_URL:', supabaseUrl ? 'SET' : 'MISSING');
+  console.error('[Supabase] VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'SET' : 'MISSING');
+  throw new Error('Missing Supabase environment variables. Check Vercel environment settings.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+console.log('[Supabase] Client created successfully');
 
 // Device UUID for identifying this device (stored in localStorage)
 const DEVICE_ID_KEY = 'fittracker_device_id';
