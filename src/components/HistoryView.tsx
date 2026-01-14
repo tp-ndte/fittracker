@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Session, SessionExercise } from '../types';
 import { loadSessions } from '../utils/storage';
-import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, isValid } from 'date-fns';
 
 export function HistoryView() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -25,14 +25,24 @@ export function HistoryView() {
     const monthEnd = endOfMonth(now);
 
     return sessions.filter(session => {
+      // Validate session has required fields
+      if (!session || !session.date || !session.name || !Array.isArray(session.exercises)) {
+        return false;
+      }
+
+      // Validate date is parseable
+      const sessionDate = parseISO(session.date);
+      if (!isValid(sessionDate)) {
+        return false;
+      }
+
       // Search filter
       const matchesSearch = searchTerm === '' ||
         session.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        session.exercises.some(ex => ex.exerciseName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        session.exercises.some(ex => ex.exerciseName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (session.workoutName?.toLowerCase().includes(searchTerm.toLowerCase()));
 
       // Date filter
-      const sessionDate = parseISO(session.date);
       let matchesDate = true;
 
       if (dateFilter === 'week') {
@@ -231,7 +241,10 @@ export function HistoryView() {
           <div className="divide-y divide-gray-200">
             {sortedDates.map(dateKey => {
               const daySessions = groupedByDate.get(dateKey) || [];
-              const formattedDate = format(parseISO(dateKey), 'EEEE, MMMM d, yyyy');
+              const parsedDate = parseISO(dateKey);
+              const formattedDate = isValid(parsedDate)
+                ? format(parsedDate, 'EEEE, MMMM d, yyyy')
+                : dateKey;
 
               return (
                 <div key={dateKey}>
