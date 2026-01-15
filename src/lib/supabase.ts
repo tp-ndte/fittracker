@@ -18,14 +18,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 console.log('[Supabase] Client created successfully');
 
-// Device UUID for identifying this device (stored in localStorage)
-const DEVICE_ID_KEY = 'fittracker_device_id';
+// Fixed user ID for this personal app
+// Using a constant ensures consistency between Safari browser and PWA home screen
+const DEFAULT_USER_ID = 'default-user';
 
 export const getDeviceId = (): string => {
-  let deviceId = localStorage.getItem(DEVICE_ID_KEY);
-  if (!deviceId) {
-    deviceId = crypto.randomUUID();
-    localStorage.setItem(DEVICE_ID_KEY, deviceId);
-  }
-  return deviceId;
+  console.log('[FitTracker] Using user ID:', DEFAULT_USER_ID);
+  console.log('[FitTracker] App context:', window.matchMedia('(display-mode: standalone)').matches ? 'PWA' : 'Browser');
+  return DEFAULT_USER_ID;
 };
