@@ -105,6 +105,41 @@ export const getSessionsByExercise = async (exerciseId: string): Promise<Session
   );
 };
 
+// Get the last session's data for a specific exercise (for showing history during workout)
+export interface ExerciseHistory {
+  date: string;
+  sessionName: string;
+  sets: { reps: number; weight: number; completed: boolean }[];
+  notes?: string;
+}
+
+export const getLastExerciseHistory = async (exerciseId: string, excludeSessionId?: string): Promise<ExerciseHistory | null> => {
+  const sessions = await loadSessions();
+
+  // Sort by date descending
+  const sortedSessions = sessions
+    .filter(s => s.id !== excludeSessionId)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  for (const session of sortedSessions) {
+    const exerciseData = session.exercises.find(ex => ex.exerciseId === exerciseId);
+    if (exerciseData) {
+      return {
+        date: session.date,
+        sessionName: session.name,
+        sets: exerciseData.sets.map(s => ({
+          reps: s.reps,
+          weight: s.weight,
+          completed: s.completed
+        })),
+        notes: exerciseData.notes
+      };
+    }
+  }
+
+  return null;
+};
+
 // ============================================
 // WORKOUTS STORAGE (saved workout plans like "Leg Day")
 // ============================================

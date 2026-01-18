@@ -161,6 +161,12 @@ export function ExerciseLibrary() {
                 <h3 className="font-semibold text-gray-700 mb-1">Category</h3>
                 <p className="text-gray-900">{selectedExercise.category}</p>
               </div>
+              {selectedExercise.details && (
+                <div>
+                  <h3 className="font-semibold text-gray-700 mb-1">Details</h3>
+                  <p className="text-gray-900 whitespace-pre-wrap">{selectedExercise.details}</p>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}

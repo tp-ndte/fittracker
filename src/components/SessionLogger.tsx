@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Session, SessionExercise, Workout, Exercise } from '../types';
 import { getAllExercises, getAllCategories } from '../utils/exerciseUtils';
-import { addSession, updateSession, deleteSession } from '../utils/storage';
+import { addSession, updateSession, deleteSession, getLastExerciseHistory, ExerciseHistory } from '../utils/storage';
 import { format } from 'date-fns';
 
 interface SessionLoggerProps {
@@ -74,6 +74,14 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [categories, setCategories] = useState<string[]>(['All']);
+  // Accordion state - track which exercises are expanded
+  const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set());
+  // Track which exercises are marked complete
+  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
+  // Exercise history from previous sessions
+  const [exerciseHistory, setExerciseHistory] = useState<Map<string, ExerciseHistory>>(new Map());
+  // Track which exercises have details shown
+  const [showDetailsFor, setShowDetailsFor] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const loadData = async () => {
@@ -87,7 +95,30 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     loadData();
   }, []);
 
-  const addExercise = (exerciseId: string) => {
+  // Initialize expanded state - all exercises expanded by default for new sessions
+  useEffect(() => {
+    const allIds = new Set(exercises.map(ex => ex.id));
+    setExpandedExercises(allIds);
+  }, []); // Only run once on mount
+
+  // Load exercise history for all exercises
+  useEffect(() => {
+    const loadHistory = async () => {
+      const historyMap = new Map<string, ExerciseHistory>();
+      for (const ex of exercises) {
+        const history = await getLastExerciseHistory(ex.exerciseId, session?.id);
+        if (history) {
+          historyMap.set(ex.exerciseId, history);
+        }
+      }
+      setExerciseHistory(historyMap);
+    };
+    if (exercises.length > 0) {
+      loadHistory();
+    }
+  }, [exercises.length, session?.id]);
+
+  const addExercise = async (exerciseId: string) => {
     const exercise = allExercises.find(ex => ex.id === exerciseId);
     if (!exercise) return;
 
@@ -102,6 +133,15 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     };
 
     setExercises([...exercises, newExercise]);
+    // Auto-expand the new exercise
+    setExpandedExercises(prev => new Set(prev).add(newExercise.id));
+
+    // Load history for this exercise
+    const history = await getLastExerciseHistory(exerciseId, session?.id);
+    if (history) {
+      setExerciseHistory(prev => new Map(prev).set(exerciseId, history));
+    }
+
     setShowExercisePicker(false);
     setSearchTerm('');
     setSelectedCategory('All');
@@ -170,6 +210,80 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
       }
       return ex;
     }));
+  };
+
+  // Toggle accordion expand/collapse
+  const toggleExpanded = (exerciseId: string) => {
+    setExpandedExercises(prev => {
+      const next = new Set(prev);
+      if (next.has(exerciseId)) {
+        next.delete(exerciseId);
+      } else {
+        next.add(exerciseId);
+      }
+      return next;
+    });
+  };
+
+  // Mark exercise as complete - mark all sets complete, collapse, and show visual
+  const markExerciseComplete = (exerciseId: string) => {
+    // Mark all sets as completed
+    setExercises(exercises.map(ex => {
+      if (ex.id === exerciseId) {
+        return {
+          ...ex,
+          sets: ex.sets.map(s => ({ ...s, completed: true }))
+        };
+      }
+      return ex;
+    }));
+    // Add to completed set
+    setCompletedExercises(prev => new Set(prev).add(exerciseId));
+    // Collapse the exercise
+    setExpandedExercises(prev => {
+      const next = new Set(prev);
+      next.delete(exerciseId);
+      return next;
+    });
+  };
+
+  // Undo exercise completion
+  const undoExerciseComplete = (exerciseId: string) => {
+    setCompletedExercises(prev => {
+      const next = new Set(prev);
+      next.delete(exerciseId);
+      return next;
+    });
+    // Expand to show again
+    setExpandedExercises(prev => new Set(prev).add(exerciseId));
+  };
+
+  // Update exercise notes
+  const updateExerciseNotes = (exerciseId: string, notes: string) => {
+    setExercises(exercises.map(ex => {
+      if (ex.id === exerciseId) {
+        return { ...ex, notes };
+      }
+      return ex;
+    }));
+  };
+
+  // Toggle showing exercise details
+  const toggleShowDetails = (exerciseId: string) => {
+    setShowDetailsFor(prev => {
+      const next = new Set(prev);
+      if (next.has(exerciseId)) {
+        next.delete(exerciseId);
+      } else {
+        next.add(exerciseId);
+      }
+      return next;
+    });
+  };
+
+  // Get exercise details from library
+  const getExerciseDetails = (exerciseId: string): string | undefined => {
+    return allExercises.find(ex => ex.id === exerciseId)?.details;
   };
 
   const handleSave = async () => {
@@ -252,70 +366,230 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     return result;
   };
 
-  const renderExerciseCard = (exercise: SessionExercise, inSuperset: boolean = false) => (
-    <div key={exercise.id} className={`${inSuperset ? 'bg-white' : 'border border-gray-200 rounded-lg'} p-4 space-y-3`}>
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-lg">{exercise.exerciseName}</h3>
-        <button
-          onClick={() => removeExercise(exercise.id)}
-          className="text-red-500 text-xl"
-        >
-          &times;
-        </button>
-      </div>
+  const renderExerciseCard = (exercise: SessionExercise, inSuperset: boolean = false) => {
+    const isExpanded = expandedExercises.has(exercise.id);
+    const isCompleted = completedExercises.has(exercise.id);
+    const exerciseDetails = getExerciseDetails(exercise.exerciseId);
+    const showingDetails = showDetailsFor.has(exercise.id);
+    const history = exerciseHistory.get(exercise.exerciseId);
 
-      {/* Sets */}
-      <div className="space-y-2">
-        {exercise.sets.map((set, idx) => (
-          <div key={set.id} className="flex items-center gap-2">
-            <button
-              onClick={() => toggleSetComplete(exercise.id, set.id)}
-              className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                set.completed
-                  ? 'bg-green-500 border-green-500 text-white'
-                  : 'border-gray-300'
-              }`}
+    return (
+      <div
+        key={exercise.id}
+        className={`${inSuperset ? 'bg-white' : 'border border-gray-200 rounded-lg'} overflow-hidden ${
+          isCompleted ? 'bg-green-50 border-green-300' : ''
+        }`}
+      >
+        {/* Accordion Header */}
+        <div
+          className={`p-4 flex items-center justify-between cursor-pointer ${
+            isCompleted ? 'bg-green-100' : 'bg-gray-50'
+          }`}
+          onClick={() => toggleExpanded(exercise.id)}
+        >
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Expand/Collapse Icon */}
+            <svg
+              className={`w-5 h-5 flex-shrink-0 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              {set.completed && '✓'}
-            </button>
-            <span className="text-sm font-medium w-6 flex-shrink-0">#{idx + 1}</span>
-            <input
-              type="number"
-              value={set.reps}
-              onChange={(e) => updateSet(exercise.id, set.id, 'reps', Number(e.target.value))}
-              className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
-              placeholder="Reps"
-            />
-            <span className="text-sm flex-shrink-0">reps</span>
-            <input
-              type="number"
-              value={set.weight}
-              onChange={(e) => updateSet(exercise.id, set.id, 'weight', Number(e.target.value))}
-              className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
-              placeholder="Weight"
-              step="0.5"
-            />
-            <span className="text-sm flex-shrink-0">kgs</span>
-            {exercise.sets.length > 1 && (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            {/* Completion indicator */}
+            {isCompleted && (
+              <span className="w-6 h-6 flex-shrink-0 bg-green-500 rounded-full flex items-center justify-center text-white text-sm">
+                ✓
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <h3 className={`font-semibold text-lg truncate ${isCompleted ? 'text-green-800' : ''}`}>
+                {exercise.exerciseName}
+              </h3>
+              <span className="text-sm text-gray-500">
+                {exercise.sets.filter(s => s.completed).length}/{exercise.sets.length} sets
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              removeExercise(exercise.id);
+            }}
+            className="text-red-500 text-xl ml-2 flex-shrink-0"
+          >
+            &times;
+          </button>
+        </div>
+
+        {/* Accordion Content */}
+        {isExpanded && (
+          <div className="p-4 space-y-4 border-t border-gray-200">
+            {/* Exercise Details (if available) */}
+            {exerciseDetails && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg">
+                <button
+                  onClick={() => toggleShowDetails(exercise.id)}
+                  className="w-full px-3 py-2 flex items-center justify-between text-sm text-blue-700"
+                >
+                  <span className="flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Form Instructions
+                  </span>
+                  <svg
+                    className={`w-4 h-4 transition-transform ${showingDetails ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showingDetails && (
+                  <div className="px-3 pb-3 text-sm text-blue-800 whitespace-pre-wrap">
+                    {exerciseDetails}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Previous Session History */}
+            {history && (
+              <div className="bg-gray-100 rounded-lg p-3">
+                <div className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Last time ({format(new Date(history.date), 'MMM d')}):
+                </div>
+                <div className="text-sm text-gray-700">
+                  {history.sets.map((s, i) => (
+                    <span key={i}>
+                      {i > 0 && ' | '}
+                      {s.reps}×{s.weight}kg
+                    </span>
+                  ))}
+                </div>
+                {history.notes && (
+                  <div className="mt-2 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">
+                    Note: {history.notes}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Sets */}
+            <div className="space-y-2">
+              {exercise.sets.map((set, idx) => {
+                const historySet = history?.sets[idx];
+                return (
+                  <div key={set.id} className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleSetComplete(exercise.id, set.id)}
+                      className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                        set.completed
+                          ? 'bg-green-500 border-green-500 text-white'
+                          : 'border-gray-300'
+                      }`}
+                    >
+                      {set.completed && '✓'}
+                    </button>
+                    <span className="text-sm font-medium w-6 flex-shrink-0">#{idx + 1}</span>
+                    <div className="flex flex-col">
+                      <input
+                        type="number"
+                        value={set.reps}
+                        onChange={(e) => updateSet(exercise.id, set.id, 'reps', Number(e.target.value))}
+                        className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                        placeholder="Reps"
+                      />
+                      {historySet && (
+                        <span className="text-xs text-gray-400 text-center">{historySet.reps}</span>
+                      )}
+                    </div>
+                    <span className="text-sm flex-shrink-0">reps</span>
+                    <div className="flex flex-col">
+                      <input
+                        type="number"
+                        value={set.weight}
+                        onChange={(e) => updateSet(exercise.id, set.id, 'weight', Number(e.target.value))}
+                        className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                        placeholder="Weight"
+                        step="0.5"
+                      />
+                      {historySet && (
+                        <span className="text-xs text-gray-400 text-center">{historySet.weight}kg</span>
+                      )}
+                    </div>
+                    <span className="text-sm flex-shrink-0">kgs</span>
+                    {exercise.sets.length > 1 && (
+                      <button
+                        onClick={() => removeSet(exercise.id, set.id)}
+                        className="text-red-500 ml-auto flex-shrink-0"
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-2">
               <button
-                onClick={() => removeSet(exercise.id, set.id)}
-                className="text-red-500 ml-auto flex-shrink-0"
+                onClick={() => addSet(exercise.id)}
+                className="text-blue-600 text-sm font-medium"
               >
-                &times;
+                + Add Set
+              </button>
+            </div>
+
+            {/* Exercise Notes */}
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">Notes for this exercise</label>
+              <textarea
+                value={exercise.notes || ''}
+                onChange={(e) => updateExerciseNotes(exercise.id, e.target.value)}
+                placeholder="Add notes (e.g., 'increase weight next time')..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={2}
+              />
+            </div>
+
+            {/* Mark Complete Button */}
+            {!isCompleted ? (
+              <button
+                onClick={() => markExerciseComplete(exercise.id)}
+                className="w-full py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Mark Complete
+              </button>
+            ) : (
+              <button
+                onClick={() => undoExerciseComplete(exercise.id)}
+                className="w-full py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
+              >
+                Undo Complete
               </button>
             )}
           </div>
-        ))}
-      </div>
+        )}
 
-      <button
-        onClick={() => addSet(exercise.id)}
-        className="text-blue-600 text-sm font-medium"
-      >
-        + Add Set
-      </button>
-    </div>
-  );
+        {/* Collapsed completed indicator */}
+        {!isExpanded && isCompleted && (
+          <div className="px-4 pb-2 text-sm text-green-600">
+            Tap to expand and review
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center">
