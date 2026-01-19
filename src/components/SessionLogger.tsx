@@ -286,16 +286,22 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     return allExercises.find(ex => ex.id === exerciseId)?.details;
   };
 
+  // Determine if this is a new session from a workout (not editing)
+  const isNewWorkoutSession = !session && !!initialWorkout;
+
   const handleSave = async () => {
-    if (!sessionName.trim() || exercises.length === 0) {
+    // For new workout sessions, use the workout name; otherwise require manual entry
+    const finalName = isNewWorkoutSession ? workoutName || 'Workout Session' : sessionName;
+
+    if (!finalName.trim() || exercises.length === 0) {
       alert('Please add a session name and at least one exercise');
       return;
     }
 
     const sessionData: Session = {
       id: session?.id || `${Date.now()}`,
-      date: sessionDate,
-      name: sessionName,
+      date: isNewWorkoutSession ? format(new Date(), 'yyyy-MM-dd') : sessionDate,
+      name: finalName,
       exercises,
       notes,
       workoutId,
