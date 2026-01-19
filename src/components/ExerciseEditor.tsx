@@ -119,7 +119,7 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
             <div className="flex flex-wrap gap-2 mb-2">
-              {existingCategories.map(cat => (
+              {[...existingCategories].sort((a, b) => a.localeCompare(b)).map(cat => (
                 <button
                   key={cat}
                   onClick={() => canEdit && setCategory(cat)}

@@ -258,6 +258,55 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     setExpandedExercises(prev => new Set(prev).add(exerciseId));
   };
 
+  // Mark all exercises in a superset as complete
+  const markSupersetComplete = (groupId: string) => {
+    const groupExercises = supersetGroups.get(groupId) || [];
+    // Mark all sets as completed for all exercises in the superset
+    setExercises(exercises.map(ex => {
+      if (ex.supersetGroupId === groupId) {
+        return {
+          ...ex,
+          sets: ex.sets.map(s => ({ ...s, completed: true }))
+        };
+      }
+      return ex;
+    }));
+    // Add all exercises to completed set
+    setCompletedExercises(prev => {
+      const next = new Set(prev);
+      groupExercises.forEach(ex => next.add(ex.id));
+      return next;
+    });
+    // Collapse all exercises in the superset
+    setExpandedExercises(prev => {
+      const next = new Set(prev);
+      groupExercises.forEach(ex => next.delete(ex.id));
+      return next;
+    });
+  };
+
+  // Undo superset completion
+  const undoSupersetComplete = (groupId: string) => {
+    const groupExercises = supersetGroups.get(groupId) || [];
+    setCompletedExercises(prev => {
+      const next = new Set(prev);
+      groupExercises.forEach(ex => next.delete(ex.id));
+      return next;
+    });
+    // Expand all exercises to show again
+    setExpandedExercises(prev => {
+      const next = new Set(prev);
+      groupExercises.forEach(ex => next.add(ex.id));
+      return next;
+    });
+  };
+
+  // Check if all exercises in a superset are complete
+  const isSupersetComplete = (groupId: string): boolean => {
+    const groupExercises = supersetGroups.get(groupId) || [];
+    return groupExercises.every(ex => completedExercises.has(ex.id));
+  };
+
   // Update exercise notes
   const updateExerciseNotes = (exerciseId: string, notes: string) => {
     setExercises(exercises.map(ex => {
@@ -443,7 +492,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Form Instructions
+                    Exercise Details
                   </span>
                   <svg
                     className={`w-4 h-4 transition-transform ${showingDetails ? 'rotate-180' : ''}`}
@@ -489,59 +538,46 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
 
             {/* Sets */}
             <div className="space-y-2">
-              {exercise.sets.map((set, idx) => {
-                const historySet = history?.sets[idx];
-                return (
-                  <div key={set.id} className="flex items-center gap-2">
+              {exercise.sets.map((set, idx) => (
+                <div key={set.id} className="flex items-center gap-2">
+                  <button
+                    onClick={() => toggleSetComplete(exercise.id, set.id)}
+                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      set.completed
+                        ? 'bg-green-500 border-green-500 text-white'
+                        : 'border-gray-300'
+                    }`}
+                  >
+                    {set.completed && '✓'}
+                  </button>
+                  <span className="text-sm font-medium w-6 flex-shrink-0">#{idx + 1}</span>
+                  <input
+                    type="number"
+                    value={set.reps}
+                    onChange={(e) => updateSet(exercise.id, set.id, 'reps', Number(e.target.value))}
+                    className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                    placeholder="Reps"
+                  />
+                  <span className="text-sm flex-shrink-0">reps</span>
+                  <input
+                    type="number"
+                    value={set.weight}
+                    onChange={(e) => updateSet(exercise.id, set.id, 'weight', Number(e.target.value))}
+                    className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                    placeholder="Weight"
+                    step="0.5"
+                  />
+                  <span className="text-sm flex-shrink-0">kgs</span>
+                  {exercise.sets.length > 1 && (
                     <button
-                      onClick={() => toggleSetComplete(exercise.id, set.id)}
-                      className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                        set.completed
-                          ? 'bg-green-500 border-green-500 text-white'
-                          : 'border-gray-300'
-                      }`}
+                      onClick={() => removeSet(exercise.id, set.id)}
+                      className="text-red-500 ml-auto flex-shrink-0"
                     >
-                      {set.completed && '✓'}
+                      &times;
                     </button>
-                    <span className="text-sm font-medium w-6 flex-shrink-0">#{idx + 1}</span>
-                    <div className="flex flex-col">
-                      <input
-                        type="number"
-                        value={set.reps}
-                        onChange={(e) => updateSet(exercise.id, set.id, 'reps', Number(e.target.value))}
-                        className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
-                        placeholder="Reps"
-                      />
-                      {historySet && (
-                        <span className="text-xs text-gray-400 text-center">{historySet.reps}</span>
-                      )}
-                    </div>
-                    <span className="text-sm flex-shrink-0">reps</span>
-                    <div className="flex flex-col">
-                      <input
-                        type="number"
-                        value={set.weight}
-                        onChange={(e) => updateSet(exercise.id, set.id, 'weight', Number(e.target.value))}
-                        className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
-                        placeholder="Weight"
-                        step="0.5"
-                      />
-                      {historySet && (
-                        <span className="text-xs text-gray-400 text-center">{historySet.weight}kg</span>
-                      )}
-                    </div>
-                    <span className="text-sm flex-shrink-0">kgs</span>
-                    {exercise.sets.length > 1 && (
-                      <button
-                        onClick={() => removeSet(exercise.id, set.id)}
-                        className="text-red-500 ml-auto flex-shrink-0"
-                      >
-                        &times;
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+                  )}
+                </div>
+              ))}
             </div>
 
             <div className="flex gap-2">
@@ -565,24 +601,26 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
               />
             </div>
 
-            {/* Mark Complete Button */}
-            {!isCompleted ? (
-              <button
-                onClick={() => markExerciseComplete(exercise.id)}
-                className="w-full py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Mark Complete
-              </button>
-            ) : (
-              <button
-                onClick={() => undoExerciseComplete(exercise.id)}
-                className="w-full py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
-              >
-                Undo Complete
-              </button>
+            {/* Mark Complete Button - only show for non-superset exercises */}
+            {!inSuperset && (
+              !isCompleted ? (
+                <button
+                  onClick={() => markExerciseComplete(exercise.id)}
+                  className="w-full py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Mark Complete
+                </button>
+              ) : (
+                <button
+                  onClick={() => undoExerciseComplete(exercise.id)}
+                  className="w-full py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
+                >
+                  Undo Complete
+                </button>
+              )
             )}
           </div>
         )}
@@ -611,25 +649,30 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* Session Details */}
           <div className="space-y-3">
-            <input
-              type="text"
-              placeholder="Session Name"
-              value={sessionName}
-              onChange={(e) => setSessionName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <input
-              type="date"
-              value={sessionDate}
-              onChange={(e) => setSessionDate(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            {/* Only show name/date fields when editing an existing session */}
+            {session && (
+              <>
+                <input
+                  type="text"
+                  placeholder="Session Name"
+                  value={sessionName}
+                  onChange={(e) => setSessionName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <input
+                  type="date"
+                  value={sessionDate}
+                  onChange={(e) => setSessionDate(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </>
+            )}
             {workoutName && (
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                <span>From workout: <strong>{workoutName}</strong></span>
+                <span>Workout: <strong>{workoutName}</strong></span>
               </div>
             )}
           </div>
@@ -641,18 +684,51 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
                 return (
                   <div
                     key={item.groupId}
-                    className="border-2 border-orange-300 rounded-lg overflow-hidden"
+                    className={`border-2 rounded-lg overflow-hidden ${
+                      isSupersetComplete(item.groupId) ? 'border-green-400 bg-green-50' : 'border-orange-300'
+                    }`}
                   >
-                    <div className="px-3 py-2 bg-orange-100 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      <span className="text-sm font-medium text-orange-800">
+                    <div className={`px-3 py-2 flex items-center gap-2 ${
+                      isSupersetComplete(item.groupId) ? 'bg-green-100' : 'bg-orange-100'
+                    }`}>
+                      {isSupersetComplete(item.groupId) ? (
+                        <span className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</span>
+                      ) : (
+                        <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      )}
+                      <span className={`text-sm font-medium ${
+                        isSupersetComplete(item.groupId) ? 'text-green-800' : 'text-orange-800'
+                      }`}>
                         Superset ({item.exercises.length} exercises)
                       </span>
                     </div>
-                    <div className="divide-y divide-orange-200 bg-orange-50">
+                    <div className={`divide-y ${
+                      isSupersetComplete(item.groupId) ? 'divide-green-200 bg-green-50' : 'divide-orange-200 bg-orange-50'
+                    }`}>
                       {item.exercises.map(ex => renderExerciseCard(ex, true))}
+                    </div>
+                    {/* Superset Complete Button */}
+                    <div className="p-3 bg-white border-t border-orange-200">
+                      {!isSupersetComplete(item.groupId) ? (
+                        <button
+                          onClick={() => markSupersetComplete(item.groupId)}
+                          className="w-full py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Mark Superset Complete
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => undoSupersetComplete(item.groupId)}
+                          className="w-full py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
+                        >
+                          Undo Complete
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
