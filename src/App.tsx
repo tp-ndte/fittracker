@@ -1,50 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { View } from './types';
 import { HomeView } from './components/HomeView';
 import { WorkoutLibrary } from './components/WorkoutLibrary';
 import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { HistoryView } from './components/HistoryView';
-import { exportBackup, importBackup } from './utils/storage';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('home');
-  const [showSettings, setShowSettings] = useState(false);
-  const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleExport = async () => {
-    await exportBackup();
-    setImportStatus({ type: 'success', message: 'Backup downloaded!' });
-    setTimeout(() => setImportStatus(null), 3000);
-  };
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const result = await importBackup(file);
-    setImportStatus({
-      type: result.success ? 'success' : 'error',
-      message: result.message
-    });
-
-    if (result.success) {
-      setTimeout(() => {
-        setShowSettings(false);
-        setImportStatus(null);
-        window.location.reload();
-      }, 1500);
-    } else {
-      setTimeout(() => setImportStatus(null), 3000);
-    }
-
-    // Reset file input
-    e.target.value = '';
-  };
 
   const renderView = () => {
     switch (currentView) {
@@ -65,18 +27,8 @@ function App() {
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
       <header className="bg-blue-600 text-white p-4 safe-top shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="w-10" />
+        <div className="flex items-center justify-center">
           <h1 className="text-2xl font-bold">FitTracker</h1>
-          <button
-            onClick={() => setShowSettings(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-blue-500"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
         </div>
       </header>
 
@@ -189,74 +141,6 @@ function App() {
           </button>
         </div>
       </nav>
-
-      {/* Settings Modal */}
-      {showSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-sm overflow-hidden">
-            {/* Header */}
-            <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Settings</h2>
-              <button onClick={() => setShowSettings(false)} className="text-2xl">
-                &times;
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-4 space-y-4">
-              <div className="border-b pb-4">
-                <h3 className="font-semibold text-gray-800 mb-2">Data Backup</h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  Export your data before updates to prevent data loss.
-                </p>
-                <button
-                  onClick={handleExport}
-                  className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Export Data
-                </button>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-gray-800 mb-2">Restore Data</h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  Import a previously exported backup file.
-                </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <button
-                  onClick={handleImportClick}
-                  className="w-full py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                  Import Data
-                </button>
-              </div>
-
-              {/* Status Message */}
-              {importStatus && (
-                <div className={`p-3 rounded-lg text-center font-medium ${
-                  importStatus.type === 'success'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
-                }`}>
-                  {importStatus.message}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

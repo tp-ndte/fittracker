@@ -453,7 +453,7 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
               <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
-                {exerciseCategories.map(cat => (
+                {['All', ...exerciseCategories.filter(c => c !== 'All').sort((a, b) => a.localeCompare(b))].map(cat => (
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}

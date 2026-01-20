@@ -421,12 +421,24 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     return result;
   };
 
+  // Get exercise category from library
+  const getExerciseCategory = (exerciseId: string): string | undefined => {
+    return allExercises.find(ex => ex.id === exerciseId)?.category;
+  };
+
+  // Check if exercise is in a category that should skip history display
+  const shouldShowHistory = (exerciseId: string): boolean => {
+    const category = getExerciseCategory(exerciseId)?.toLowerCase();
+    return category !== 'warm up' && category !== 'mobility';
+  };
+
   const renderExerciseCard = (exercise: SessionExercise, inSuperset: boolean = false) => {
     const isExpanded = expandedExercises.has(exercise.id);
     const isCompleted = completedExercises.has(exercise.id);
     const exerciseDetails = getExerciseDetails(exercise.exerciseId);
     const showingDetails = showDetailsFor.has(exercise.id);
     const history = exerciseHistory.get(exercise.exerciseId);
+    const showHistory = shouldShowHistory(exercise.exerciseId);
 
     return (
       <div
@@ -511,8 +523,8 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
               </div>
             )}
 
-            {/* Previous Session History */}
-            {history && (
+            {/* Previous Session History - skip for warm up/mobility */}
+            {history && showHistory && (
               <div className="bg-gray-100 rounded-lg p-3">
                 <div className="text-xs text-gray-500 mb-2 flex items-center gap-1">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -86,7 +86,7 @@ export function ExerciseLibrary() {
       {/* Category Filter */}
       <div className="p-4 bg-white border-b overflow-x-auto">
         <div className="flex gap-2 min-w-max">
-          {categories.map(category => (
+          {['All', ...categories.filter(c => c !== 'All').sort((a, b) => a.localeCompare(b))].map(category => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
