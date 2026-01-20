@@ -11,7 +11,6 @@ interface SessionLoggerProps {
   initialWorkout?: Workout;
 }
 
-// Helper to convert workout to session exercises
 function workoutToExercises(workout: Workout): SessionExercise[] {
   return workout.exercises.map(wEx => ({
     id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -29,7 +28,6 @@ function workoutToExercises(workout: Workout): SessionExercise[] {
 }
 
 export function SessionLogger({ session, onClose, onSave, initialWorkout }: SessionLoggerProps) {
-  // Initialize state based on session, initialWorkout, or defaults
   const getInitialState = () => {
     if (session) {
       return {
@@ -61,9 +59,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
   const initial = getInitialState();
 
   const [sessionName, setSessionName] = useState(initial.name);
-  const [sessionDate, setSessionDate] = useState(
-    session?.date || format(new Date(), 'yyyy-MM-dd')
-  );
+  const [sessionDate, setSessionDate] = useState(session?.date || format(new Date(), 'yyyy-MM-dd'));
   const [exercises, setExercises] = useState<SessionExercise[]>(initial.exercises);
   const [notes, setNotes] = useState(session?.notes || '');
   const [showExercisePicker, setShowExercisePicker] = useState(false);
@@ -71,16 +67,13 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [workoutId] = useState<string | undefined>(initial.workoutId);
   const [workoutName] = useState<string | undefined>(initial.workoutName);
+  const [workoutCategory] = useState<'Strength' | 'Mobility' | undefined>(initialWorkout?.category || session?.workoutCategory);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [categories, setCategories] = useState<string[]>(['All']);
-  // Accordion state - track which exercises are expanded
   const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set());
-  // Track which exercises are marked complete
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
-  // Exercise history from previous sessions
   const [exerciseHistory, setExerciseHistory] = useState<Map<string, ExerciseHistory>>(new Map());
-  // Track which exercises have details shown
   const [showDetailsFor, setShowDetailsFor] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -95,13 +88,11 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     loadData();
   }, []);
 
-  // Initialize expanded state - all exercises expanded by default for new sessions
   useEffect(() => {
     const allIds = new Set(exercises.map(ex => ex.id));
     setExpandedExercises(allIds);
-  }, []); // Only run once on mount
+  }, []);
 
-  // Load exercise history for all exercises
   useEffect(() => {
     const loadHistory = async () => {
       const historyMap = new Map<string, ExerciseHistory>();
@@ -126,17 +117,13 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       exerciseId: exercise.id,
       exerciseName: exercise.name,
-      sets: [
-        { id: `${Date.now()}-1`, reps: 10, weight: 0, completed: false }
-      ],
+      sets: [{ id: `${Date.now()}-1`, reps: 10, weight: 0, completed: false }],
       notes: ''
     };
 
     setExercises([...exercises, newExercise]);
-    // Auto-expand the new exercise
     setExpandedExercises(prev => new Set(prev).add(newExercise.id));
 
-    // Load history for this exercise
     const history = await getLastExerciseHistory(exerciseId, session?.id);
     if (history) {
       setExerciseHistory(prev => new Map(prev).set(exerciseId, history));
@@ -157,15 +144,12 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
         const lastSet = ex.sets[ex.sets.length - 1];
         return {
           ...ex,
-          sets: [
-            ...ex.sets,
-            {
-              id: `${Date.now()}-${ex.sets.length}`,
-              reps: lastSet?.reps || 10,
-              weight: lastSet?.weight || 0,
-              completed: false
-            }
-          ]
+          sets: [...ex.sets, {
+            id: `${Date.now()}-${ex.sets.length}`,
+            reps: lastSet?.reps || 10,
+            weight: lastSet?.weight || 0,
+            completed: false
+          }]
         };
       }
       return ex;
@@ -175,10 +159,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
   const removeSet = (exerciseId: string, setId: string) => {
     setExercises(exercises.map(ex => {
       if (ex.id === exerciseId) {
-        return {
-          ...ex,
-          sets: ex.sets.filter(s => s.id !== setId)
-        };
+        return { ...ex, sets: ex.sets.filter(s => s.id !== setId) };
       }
       return ex;
     }));
@@ -189,9 +170,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
       if (ex.id === exerciseId) {
         return {
           ...ex,
-          sets: ex.sets.map(s =>
-            s.id === setId ? { ...s, [field]: value } : s
-          )
+          sets: ex.sets.map(s => s.id === setId ? { ...s, [field]: value } : s)
         };
       }
       return ex;
@@ -203,16 +182,13 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
       if (ex.id === exerciseId) {
         return {
           ...ex,
-          sets: ex.sets.map(s =>
-            s.id === setId ? { ...s, completed: !s.completed } : s
-          )
+          sets: ex.sets.map(s => s.id === setId ? { ...s, completed: !s.completed } : s)
         };
       }
       return ex;
     }));
   };
 
-  // Toggle accordion expand/collapse
   const toggleExpanded = (exerciseId: string) => {
     setExpandedExercises(prev => {
       const next = new Set(prev);
@@ -225,21 +201,14 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     });
   };
 
-  // Mark exercise as complete - mark all sets complete, collapse, and show visual
   const markExerciseComplete = (exerciseId: string) => {
-    // Mark all sets as completed
     setExercises(exercises.map(ex => {
       if (ex.id === exerciseId) {
-        return {
-          ...ex,
-          sets: ex.sets.map(s => ({ ...s, completed: true }))
-        };
+        return { ...ex, sets: ex.sets.map(s => ({ ...s, completed: true })) };
       }
       return ex;
     }));
-    // Add to completed set
     setCompletedExercises(prev => new Set(prev).add(exerciseId));
-    // Collapse the exercise
     setExpandedExercises(prev => {
       const next = new Set(prev);
       next.delete(exerciseId);
@@ -247,37 +216,28 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     });
   };
 
-  // Undo exercise completion
   const undoExerciseComplete = (exerciseId: string) => {
     setCompletedExercises(prev => {
       const next = new Set(prev);
       next.delete(exerciseId);
       return next;
     });
-    // Expand to show again
     setExpandedExercises(prev => new Set(prev).add(exerciseId));
   };
 
-  // Mark all exercises in a superset as complete
   const markSupersetComplete = (groupId: string) => {
     const groupExercises = supersetGroups.get(groupId) || [];
-    // Mark all sets as completed for all exercises in the superset
     setExercises(exercises.map(ex => {
       if (ex.supersetGroupId === groupId) {
-        return {
-          ...ex,
-          sets: ex.sets.map(s => ({ ...s, completed: true }))
-        };
+        return { ...ex, sets: ex.sets.map(s => ({ ...s, completed: true })) };
       }
       return ex;
     }));
-    // Add all exercises to completed set
     setCompletedExercises(prev => {
       const next = new Set(prev);
       groupExercises.forEach(ex => next.add(ex.id));
       return next;
     });
-    // Collapse all exercises in the superset
     setExpandedExercises(prev => {
       const next = new Set(prev);
       groupExercises.forEach(ex => next.delete(ex.id));
@@ -285,7 +245,6 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     });
   };
 
-  // Undo superset completion
   const undoSupersetComplete = (groupId: string) => {
     const groupExercises = supersetGroups.get(groupId) || [];
     setCompletedExercises(prev => {
@@ -293,7 +252,6 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
       groupExercises.forEach(ex => next.delete(ex.id));
       return next;
     });
-    // Expand all exercises to show again
     setExpandedExercises(prev => {
       const next = new Set(prev);
       groupExercises.forEach(ex => next.add(ex.id));
@@ -301,23 +259,15 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     });
   };
 
-  // Check if all exercises in a superset are complete
   const isSupersetComplete = (groupId: string): boolean => {
     const groupExercises = supersetGroups.get(groupId) || [];
     return groupExercises.every(ex => completedExercises.has(ex.id));
   };
 
-  // Update exercise notes
   const updateExerciseNotes = (exerciseId: string, notes: string) => {
-    setExercises(exercises.map(ex => {
-      if (ex.id === exerciseId) {
-        return { ...ex, notes };
-      }
-      return ex;
-    }));
+    setExercises(exercises.map(ex => ex.id === exerciseId ? { ...ex, notes } : ex));
   };
 
-  // Toggle showing exercise details
   const toggleShowDetails = (exerciseId: string) => {
     setShowDetailsFor(prev => {
       const next = new Set(prev);
@@ -330,18 +280,14 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     });
   };
 
-  // Get exercise details from library
   const getExerciseDetails = (exerciseId: string): string | undefined => {
     return allExercises.find(ex => ex.id === exerciseId)?.details;
   };
 
-  // Determine if this is a new session from a workout (not editing)
   const isNewWorkoutSession = !session && !!initialWorkout;
 
   const handleSave = async () => {
-    // For new workout sessions, use the workout name; otherwise require manual entry
     const finalName = isNewWorkoutSession ? workoutName || 'Workout Session' : sessionName;
-
     if (!finalName.trim() || exercises.length === 0) {
       alert('Please add a session name and at least one exercise');
       return;
@@ -354,7 +300,8 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
       exercises,
       notes,
       workoutId,
-      workoutName
+      workoutName,
+      workoutCategory
     };
 
     if (session) {
@@ -382,7 +329,6 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     return matchesSearch && matchesCategory;
   });
 
-  // Group exercises by superset
   const getSupersetGroups = (): Map<string, SessionExercise[]> => {
     const groups = new Map<string, SessionExercise[]>();
     exercises.forEach(ex => {
@@ -397,7 +343,6 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
 
   const supersetGroups = getSupersetGroups();
 
-  // Get exercises grouped for display
   const getGroupedExercises = () => {
     const result: (SessionExercise | { type: 'superset'; groupId: string; exercises: SessionExercise[] })[] = [];
     const processedSupersets = new Set<string>();
@@ -421,16 +366,19 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     return result;
   };
 
-  // Get exercise category from library
   const getExerciseCategory = (exerciseId: string): string | undefined => {
     return allExercises.find(ex => ex.id === exerciseId)?.category;
   };
 
-  // Check if exercise is in a category that should skip history display
   const shouldShowHistory = (exerciseId: string): boolean => {
     const category = getExerciseCategory(exerciseId)?.toLowerCase();
     return category !== 'warm up' && category !== 'mobility';
   };
+
+  // Calculate progress
+  const totalExercises = exercises.length;
+  const completedCount = completedExercises.size;
+  const progressPercent = totalExercises > 0 ? Math.round((completedCount / totalExercises) * 100) : 0;
 
   const renderExerciseCard = (exercise: SessionExercise, inSuperset: boolean = false) => {
     const isExpanded = expandedExercises.has(exercise.id);
@@ -443,39 +391,31 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     return (
       <div
         key={exercise.id}
-        className={`${inSuperset ? 'bg-white' : 'border border-gray-200 rounded-lg'} overflow-hidden ${
-          isCompleted ? 'bg-green-50 border-green-300' : ''
+        className={`${inSuperset ? 'bg-white' : 'card'} overflow-hidden ${
+          isCompleted ? 'bg-success-50 ring-2 ring-success-300' : ''
         }`}
       >
         {/* Accordion Header */}
         <div
-          className={`p-4 flex items-center justify-between cursor-pointer ${
-            isCompleted ? 'bg-green-100' : 'bg-gray-50'
+          className={`${inSuperset ? 'p-4' : '-m-5 p-5'} flex items-center justify-between cursor-pointer transition-colors ${
+            isCompleted ? 'bg-success-100' : 'hover:bg-surface-50'
           }`}
           onClick={() => toggleExpanded(exercise.id)}
         >
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            {/* Expand/Collapse Icon */}
-            <svg
-              className={`w-5 h-5 flex-shrink-0 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            {/* Completion indicator */}
-            {isCompleted && (
-              <span className="w-6 h-6 flex-shrink-0 bg-green-500 rounded-full flex items-center justify-center text-white text-sm">
-                ✓
-              </span>
-            )}
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform ${
+              isExpanded ? 'rotate-90' : ''
+            } ${isCompleted ? 'bg-success-500' : 'bg-surface-100'}`}>
+              <svg className={`w-5 h-5 ${isCompleted ? 'text-white' : 'text-surface-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
             <div className="min-w-0 flex-1">
-              <h3 className={`font-semibold text-lg truncate ${isCompleted ? 'text-green-800' : ''}`}>
+              <h3 className={`font-bold text-lg truncate ${isCompleted ? 'text-success-800' : 'text-surface-800'}`}>
                 {exercise.exerciseName}
               </h3>
-              <span className="text-sm text-gray-500">
-                {exercise.sets.filter(s => s.completed).length}/{exercise.sets.length} sets
+              <span className={`text-sm ${isCompleted ? 'text-success-600' : 'text-surface-500'}`}>
+                {exercise.sets.filter(s => s.completed).length}/{exercise.sets.length} sets completed
               </span>
             </div>
           </div>
@@ -484,21 +424,23 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
               e.stopPropagation();
               removeExercise(exercise.id);
             }}
-            className="text-red-500 text-xl ml-2 flex-shrink-0"
+            className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors ml-2 flex-shrink-0"
           >
-            &times;
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         {/* Accordion Content */}
         {isExpanded && (
-          <div className="p-4 space-y-4 border-t border-gray-200">
-            {/* Exercise Details (if available) */}
+          <div className={`${inSuperset ? 'p-4 pt-0' : 'mt-5 pt-5 border-t border-surface-100'} space-y-4`}>
+            {/* Exercise Details */}
             {exerciseDetails && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="bg-primary-50 rounded-xl overflow-hidden">
                 <button
                   onClick={() => toggleShowDetails(exercise.id)}
-                  className="w-full px-3 py-2 flex items-center justify-between text-sm text-blue-700"
+                  className="w-full px-4 py-3 flex items-center justify-between text-sm font-medium text-primary-700"
                 >
                   <span className="flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -506,42 +448,34 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
                     </svg>
                     Exercise Details
                   </span>
-                  <svg
-                    className={`w-4 h-4 transition-transform ${showingDetails ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className={`w-4 h-4 transition-transform ${showingDetails ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
                 {showingDetails && (
-                  <div className="px-3 pb-3 text-sm text-blue-800 whitespace-pre-wrap">
+                  <div className="px-4 pb-4 text-sm text-primary-800 whitespace-pre-wrap">
                     {exerciseDetails}
                   </div>
                 )}
               </div>
             )}
 
-            {/* Previous Session History - skip for warm up/mobility */}
+            {/* Previous Session History */}
             {history && showHistory && (
-              <div className="bg-gray-100 rounded-lg p-3">
-                <div className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+              <div className="bg-surface-100 rounded-xl p-4">
+                <div className="text-xs font-semibold text-surface-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Last time ({format(new Date(history.date), 'MMM d')}):
+                  Last time ({format(new Date(history.date), 'MMM d')})
                 </div>
-                <div className="text-sm text-gray-700">
+                <div className="text-sm font-medium text-surface-700">
                   {history.sets.map((s, i) => (
-                    <span key={i}>
-                      {i > 0 && ' | '}
-                      {s.reps}×{s.weight}kg
-                    </span>
+                    <span key={i}>{i > 0 && ' | '}{s.reps}×{s.weight}kg</span>
                   ))}
                 </div>
                 {history.notes && (
-                  <div className="mt-2 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">
+                  <div className="mt-2 text-xs text-strength-700 bg-strength-50 rounded-lg px-3 py-2">
                     Note: {history.notes}
                   </div>
                 )}
@@ -549,87 +483,87 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
             )}
 
             {/* Sets */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               {exercise.sets.map((set, idx) => (
-                <div key={set.id} className="flex items-center gap-2">
+                <div key={set.id} className="flex items-center gap-3">
                   <button
                     onClick={() => toggleSetComplete(exercise.id, set.id)}
-                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold transition-all ${
                       set.completed
-                        ? 'bg-green-500 border-green-500 text-white'
-                        : 'border-gray-300'
+                        ? 'bg-success-500 text-white shadow-button'
+                        : 'bg-surface-100 text-surface-500 hover:bg-surface-200'
                     }`}
                   >
-                    {set.completed && '✓'}
+                    {set.completed ? (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : idx + 1}
                   </button>
-                  <span className="text-sm font-medium w-6 flex-shrink-0">#{idx + 1}</span>
-                  <input
-                    type="number"
-                    value={set.reps}
-                    onChange={(e) => updateSet(exercise.id, set.id, 'reps', Number(e.target.value))}
-                    className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
-                    placeholder="Reps"
-                  />
-                  <span className="text-sm flex-shrink-0">reps</span>
-                  <input
-                    type="number"
-                    value={set.weight}
-                    onChange={(e) => updateSet(exercise.id, set.id, 'weight', Number(e.target.value))}
-                    className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
-                    placeholder="Weight"
-                    step="0.5"
-                  />
-                  <span className="text-sm flex-shrink-0">kgs</span>
+                  <div className="flex-1 flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={set.reps}
+                      onChange={(e) => updateSet(exercise.id, set.id, 'reps', Number(e.target.value))}
+                      className="w-16 input input-sm text-center font-semibold"
+                    />
+                    <span className="text-sm text-surface-500">reps</span>
+                    <input
+                      type="number"
+                      value={set.weight}
+                      onChange={(e) => updateSet(exercise.id, set.id, 'weight', Number(e.target.value))}
+                      className="w-16 input input-sm text-center font-semibold"
+                      step="0.5"
+                    />
+                    <span className="text-sm text-surface-500">kg</span>
+                  </div>
                   {exercise.sets.length > 1 && (
                     <button
                       onClick={() => removeSet(exercise.id, set.id)}
-                      className="text-red-500 ml-auto flex-shrink-0"
+                      className="w-8 h-8 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-colors"
                     >
-                      &times;
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
                     </button>
                   )}
                 </div>
               ))}
             </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => addSet(exercise.id)}
-                className="text-blue-600 text-sm font-medium"
-              >
-                + Add Set
-              </button>
-            </div>
+            <button
+              onClick={() => addSet(exercise.id)}
+              className="btn-ghost text-sm w-full"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Set
+            </button>
 
             {/* Exercise Notes */}
-            <div className="space-y-1">
-              <label className="text-xs text-gray-500">Notes for this exercise</label>
+            <div>
+              <label className="text-xs font-semibold text-surface-500 uppercase tracking-wide block mb-2">Notes</label>
               <textarea
                 value={exercise.notes || ''}
                 onChange={(e) => updateExerciseNotes(exercise.id, e.target.value)}
                 placeholder="Add notes (e.g., 'increase weight next time')..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="input text-sm"
                 rows={2}
               />
             </div>
 
-            {/* Mark Complete Button - only show for non-superset exercises */}
+            {/* Mark Complete Button */}
             {!inSuperset && (
               !isCompleted ? (
-                <button
-                  onClick={() => markExerciseComplete(exercise.id)}
-                  className="w-full py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
-                >
+                <button onClick={() => markExerciseComplete(exercise.id)} className="btn-success w-full">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                   Mark Complete
                 </button>
               ) : (
-                <button
-                  onClick={() => undoExerciseComplete(exercise.id)}
-                  className="w-full py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
-                >
+                <button onClick={() => undoExerciseComplete(exercise.id)} className="btn-secondary w-full">
                   Undo Complete
                 </button>
               )
@@ -637,10 +571,10 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
           </div>
         )}
 
-        {/* Collapsed completed indicator */}
+        {/* Collapsed completed hint */}
         {!isExpanded && isCompleted && (
-          <div className="px-4 pb-2 text-sm text-green-600">
-            Tap to expand and review
+          <div className={`${inSuperset ? 'px-4 pb-3' : 'mt-3'} text-sm text-success-600 font-medium`}>
+            Tap to review
           </div>
         )}
       </div>
@@ -648,20 +582,41 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center">
-      <div className="bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-lg overflow-hidden flex flex-col">
+    <div className="modal-backdrop">
+      <div className="bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-blue-600 text-white p-4 flex items-center justify-between safe-top">
-          <button onClick={onClose} className="text-2xl">&times;</button>
-          <h2 className="text-xl font-bold">{session ? 'Edit' : 'New'} Session</h2>
-          <button onClick={handleSave} className="font-semibold">Save</button>
+        <div className="gradient-primary text-white p-5 safe-top">
+          <div className="flex items-center justify-between">
+            <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="text-center">
+              <h2 className="text-xl font-bold">{session ? 'Edit' : 'Log'} Session</h2>
+            </div>
+            <button onClick={handleSave} className="px-4 py-2 bg-white/20 rounded-xl font-semibold hover:bg-white/30 transition-colors">
+              Save
+            </button>
+          </div>
+
+          {/* Progress Bar */}
+          {totalExercises > 0 && (
+            <div className="mt-4">
+              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white transition-all duration-300 rounded-full"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Session Details */}
           <div className="space-y-3">
-            {/* Only show name/date fields when editing an existing session */}
             {session && (
               <>
                 <input
@@ -669,75 +624,78 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
                   placeholder="Session Name"
                   value={sessionName}
                   onChange={(e) => setSessionName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="input"
                 />
                 <input
                   type="date"
                   value={sessionDate}
                   onChange={(e) => setSessionDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="input"
                 />
               </>
             )}
             {workoutName && (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <span>Workout: <strong>{workoutName}</strong></span>
+              <div className="flex items-center gap-3 p-4 bg-primary-50 rounded-xl">
+                <div className="w-10 h-10 rounded-xl bg-primary-500 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs text-primary-600 font-medium">Workout</p>
+                  <p className="font-bold text-primary-800">{workoutName}</p>
+                </div>
               </div>
             )}
           </div>
 
           {/* Exercises */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             {getGroupedExercises().map((item) => {
               if ('type' in item && item.type === 'superset') {
+                const isComplete = isSupersetComplete(item.groupId);
                 return (
                   <div
                     key={item.groupId}
-                    className={`border-2 rounded-lg overflow-hidden ${
-                      isSupersetComplete(item.groupId) ? 'border-green-400 bg-green-50' : 'border-orange-300'
+                    className={`rounded-2xl overflow-hidden ${
+                      isComplete ? 'ring-2 ring-success-400 bg-success-50' : 'ring-2 ring-strength-300'
                     }`}
                   >
-                    <div className={`px-3 py-2 flex items-center gap-2 ${
-                      isSupersetComplete(item.groupId) ? 'bg-green-100' : 'bg-orange-100'
+                    <div className={`px-4 py-3 flex items-center gap-3 ${
+                      isComplete ? 'bg-success-100' : 'bg-strength-100'
                     }`}>
-                      {isSupersetComplete(item.groupId) ? (
-                        <span className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</span>
-                      ) : (
-                        <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                      )}
-                      <span className={`text-sm font-medium ${
-                        isSupersetComplete(item.groupId) ? 'text-green-800' : 'text-orange-800'
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        isComplete ? 'bg-success-500' : 'bg-strength-500'
                       }`}>
-                        Superset ({item.exercises.length} exercises)
+                        {isComplete ? (
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className={`text-sm font-bold uppercase tracking-wide ${
+                        isComplete ? 'text-success-700' : 'text-strength-700'
+                      }`}>
+                        Superset ({item.exercises.length})
                       </span>
                     </div>
-                    <div className={`divide-y ${
-                      isSupersetComplete(item.groupId) ? 'divide-green-200 bg-green-50' : 'divide-orange-200 bg-orange-50'
-                    }`}>
+                    <div className={`divide-y ${isComplete ? 'divide-success-200' : 'divide-strength-200'}`}>
                       {item.exercises.map(ex => renderExerciseCard(ex, true))}
                     </div>
-                    {/* Superset Complete Button */}
-                    <div className="p-3 bg-white border-t border-orange-200">
-                      {!isSupersetComplete(item.groupId) ? (
-                        <button
-                          onClick={() => markSupersetComplete(item.groupId)}
-                          className="w-full py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
-                        >
+                    <div className="p-4 bg-white">
+                      {!isComplete ? (
+                        <button onClick={() => markSupersetComplete(item.groupId)} className="btn-success w-full">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                           Mark Superset Complete
                         </button>
                       ) : (
-                        <button
-                          onClick={() => undoSupersetComplete(item.groupId)}
-                          className="w-full py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
-                        >
+                        <button onClick={() => undoSupersetComplete(item.groupId)} className="btn-secondary w-full">
                           Undo Complete
                         </button>
                       )}
@@ -753,79 +711,87 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
           {/* Add Exercise Button */}
           <button
             onClick={() => setShowExercisePicker(true)}
-            className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 font-medium hover:border-blue-500 hover:text-blue-500"
+            className="w-full py-4 border-2 border-dashed border-surface-300 rounded-2xl text-surface-500 font-semibold hover:border-primary-500 hover:text-primary-500 transition-colors flex items-center justify-center gap-2"
           >
-            + Add Exercise
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Exercise
           </button>
 
           {/* Notes */}
-          <textarea
-            placeholder="Session notes..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            rows={3}
-          />
+          <div>
+            <label className="text-xs font-semibold text-surface-500 uppercase tracking-wide block mb-2">Session Notes</label>
+            <textarea
+              placeholder="How did your workout go?"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="input"
+              rows={3}
+            />
+          </div>
 
           {/* Delete Button */}
           {session && (
-            <>
+            <div className="pt-4 border-t border-surface-100">
               {showDeleteConfirm ? (
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleDelete}
-                    className="flex-1 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
-                  >
+                <div className="flex gap-3">
+                  <button onClick={handleDelete} className="btn-danger flex-1">
                     Confirm Delete
                   </button>
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300"
-                  >
+                  <button onClick={() => setShowDeleteConfirm(false)} className="btn-secondary flex-1">
                     Cancel
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full py-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600"
+                  className="w-full py-3 text-red-500 hover:bg-red-50 rounded-full font-semibold transition-colors flex items-center justify-center gap-2"
                 >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
                   Delete Session
                 </button>
               )}
-            </>
+            </div>
           )}
         </div>
 
         {/* Exercise Picker Modal */}
         {showExercisePicker && (
           <div className="absolute inset-0 bg-white flex flex-col z-10">
-            <div className="bg-blue-600 text-white p-4 flex items-center justify-between safe-top">
-              <button onClick={() => setShowExercisePicker(false)} className="text-2xl">
-                &larr;
-              </button>
-              <h2 className="text-xl font-bold">Select Exercise</h2>
-              <div className="w-8"></div>
+            <div className="gradient-primary text-white p-5 safe-top">
+              <div className="flex items-center justify-between">
+                <button onClick={() => setShowExercisePicker(false)} className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <h2 className="text-xl font-bold">Select Exercise</h2>
+                <div className="w-10"></div>
+              </div>
             </div>
 
-            <div className="p-4 space-y-3 border-b">
-              <input
-                type="text"
-                placeholder="Search exercises..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+            <div className="p-5 space-y-4 border-b border-surface-100">
+              <div className="relative">
+                <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search exercises..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="input pl-12"
+                />
+              </div>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {categories.map(cat => (
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${
-                      selectedCategory === cat
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}
+                    className={`pill ${selectedCategory === cat ? 'pill-active' : 'pill-inactive'}`}
                   >
                     {cat}
                   </button>
@@ -838,10 +804,17 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
                 <button
                   key={exercise.id}
                   onClick={() => addExercise(exercise.id)}
-                  className="w-full text-left p-4 border-b border-gray-200 hover:bg-gray-50"
+                  className="w-full text-left px-5 py-4 border-b border-surface-100 hover:bg-surface-50 transition-colors flex items-center gap-4"
                 >
-                  <div className="font-semibold">{exercise.name}</div>
-                  <div className="text-sm text-gray-500">{exercise.category}</div>
+                  <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-surface-800">{exercise.name}</div>
+                    <div className="text-sm text-surface-500">{exercise.category}</div>
+                  </div>
                 </button>
               ))}
             </div>

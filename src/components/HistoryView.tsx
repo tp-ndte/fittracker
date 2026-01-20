@@ -29,36 +29,27 @@ export function HistoryView() {
 
   const filteredSessions = useMemo(() => {
     const now = new Date();
-
-    // Calendar week: Sunday to Saturday
-    const weekStart = startOfWeek(now, { weekStartsOn: 0 }); // 0 = Sunday
+    const weekStart = startOfWeek(now, { weekStartsOn: 0 });
     const weekEnd = endOfWeek(now, { weekStartsOn: 0 });
-
-    // Calendar month
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
 
     return sessions.filter(session => {
-      // Validate session has required fields
       if (!session || !session.date || !session.name || !Array.isArray(session.exercises)) {
         return false;
       }
 
-      // Validate date is parseable
       const sessionDate = parseISO(session.date);
       if (!isValid(sessionDate)) {
         return false;
       }
 
-      // Search filter
       const matchesSearch = searchTerm === '' ||
         session.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         session.exercises.some(ex => ex.exerciseName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (session.workoutName?.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      // Date filter
       let matchesDate = true;
-
       if (dateFilter === 'week') {
         matchesDate = isWithinInterval(sessionDate, { start: weekStart, end: weekEnd });
       } else if (dateFilter === 'month') {
@@ -110,19 +101,19 @@ export function HistoryView() {
   };
 
   const renderExerciseDetails = (exercise: SessionExercise, inSuperset: boolean = false) => (
-    <div key={exercise.id} className={`${inSuperset ? '' : 'py-2'}`}>
-      <div className="font-medium text-gray-800">{exercise.exerciseName}</div>
-      <div className="mt-1 space-y-1">
+    <div key={exercise.id} className={`${inSuperset ? '' : 'py-3'}`}>
+      <div className="font-semibold text-surface-800">{exercise.exerciseName}</div>
+      <div className="mt-2 space-y-1.5">
         {exercise.sets.map((set, idx) => (
-          <div key={set.id} className="flex items-center gap-2 text-sm">
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
+          <div key={set.id} className="flex items-center gap-3 text-sm">
+            <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-medium ${
               set.completed
-                ? 'bg-green-500 text-white'
-                : 'bg-gray-200 text-gray-500'
+                ? 'bg-success-500 text-white'
+                : 'bg-surface-200 text-surface-500'
             }`}>
               {idx + 1}
             </span>
-            <span className={set.completed ? 'text-gray-700' : 'text-gray-400'}>
+            <span className={set.completed ? 'text-surface-700' : 'text-surface-400'}>
               {set.reps} reps @ {set.weight} kgs
             </span>
           </div>
@@ -136,21 +127,23 @@ export function HistoryView() {
     const processedSupersets = new Set<string>();
 
     return (
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-surface-100">
         {session.exercises.map(ex => {
           if (ex.supersetGroupId) {
             if (!processedSupersets.has(ex.supersetGroupId)) {
               processedSupersets.add(ex.supersetGroupId);
               const groupExercises = supersetGroups.get(ex.supersetGroupId) || [];
               return (
-                <div key={ex.supersetGroupId} className="py-2">
-                  <div className="flex items-center gap-2 mb-2">
-                    <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    <span className="text-xs font-medium text-orange-600 uppercase">Superset</span>
+                <div key={ex.supersetGroupId} className="py-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 rounded-lg bg-strength-100 flex items-center justify-center">
+                      <svg className="w-3.5 h-3.5 text-strength-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    <span className="text-xs font-semibold text-strength-600 uppercase tracking-wide">Superset</span>
                   </div>
-                  <div className="pl-4 border-l-2 border-orange-300 space-y-3">
+                  <div className="pl-4 border-l-2 border-strength-200 space-y-4">
                     {groupExercises
                       .sort((a, b) => (a.supersetOrder || 0) - (b.supersetOrder || 0))
                       .map(gex => renderExerciseDetails(gex, true))}
@@ -166,7 +159,6 @@ export function HistoryView() {
     );
   };
 
-  // Group sessions by date for display
   const groupedByDate = useMemo(() => {
     const groups = new Map<string, Session[]>();
     filteredSessions.forEach(session => {
@@ -180,18 +172,35 @@ export function HistoryView() {
 
   const sortedDates = Array.from(groupedByDate.keys()).sort((a, b) => b.localeCompare(a));
 
+  // Calculate totals for stats
+  const totalExercises = filteredSessions.reduce((sum, s) => sum + s.exercises.length, 0);
+  const totalCompletedSets = filteredSessions.reduce((sum, s) => sum + getSessionStats(s).completedSets, 0);
+
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col">
       {/* Search and Filter */}
-      <div className="p-4 bg-white border-b space-y-3">
-        <input
-          type="text"
-          placeholder="Search sessions, exercises, or workouts..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-        <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="p-5 bg-white border-b border-surface-100 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-surface-800">History</h2>
+            <p className="text-sm text-surface-500 mt-0.5">Your workout journey</p>
+          </div>
+        </div>
+
+        <div className="relative">
+          <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search sessions..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="input pl-12"
+          />
+        </div>
+
+        <div className="flex gap-2">
           {[
             { value: 'week', label: 'This Week' },
             { value: 'month', label: 'This Month' },
@@ -200,11 +209,7 @@ export function HistoryView() {
             <button
               key={filter.value}
               onClick={() => setDateFilter(filter.value as typeof dateFilter)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap ${
-                dateFilter === filter.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`pill ${dateFilter === filter.value ? 'pill-active' : 'pill-inactive'}`}
             >
               {filter.label}
             </button>
@@ -213,26 +218,19 @@ export function HistoryView() {
       </div>
 
       {/* Stats Summary */}
-      <div className="p-4 bg-white border-b">
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <div className="text-2xl font-bold text-blue-600">{filteredSessions.length}</div>
-            <div className="text-xs text-gray-500">Sessions</div>
+      <div className="px-5 py-4 bg-white border-b border-surface-100">
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center p-3 bg-primary-50 rounded-xl">
+            <div className="text-2xl font-bold text-primary-500">{filteredSessions.length}</div>
+            <div className="text-xs text-primary-600 font-medium mt-0.5">Sessions</div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-green-600">
-              {filteredSessions.reduce((sum, s) => sum + s.exercises.length, 0)}
-            </div>
-            <div className="text-xs text-gray-500">Exercises</div>
+          <div className="text-center p-3 bg-success-50 rounded-xl">
+            <div className="text-2xl font-bold text-success-500">{totalExercises}</div>
+            <div className="text-xs text-success-600 font-medium mt-0.5">Exercises</div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-purple-600">
-              {filteredSessions.reduce((sum, s) => {
-                const stats = getSessionStats(s);
-                return sum + stats.completedSets;
-              }, 0)}
-            </div>
-            <div className="text-xs text-gray-500">Sets Completed</div>
+          <div className="text-center p-3 bg-secondary-50 rounded-xl">
+            <div className="text-2xl font-bold text-secondary-500">{totalCompletedSets}</div>
+            <div className="text-xs text-secondary-600 font-medium mt-0.5">Sets Done</div>
           </div>
         </div>
       </div>
@@ -240,157 +238,176 @@ export function HistoryView() {
       {/* Session List */}
       <div className="flex-1 overflow-y-auto">
         {sortedDates.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-lg font-medium">No session history</p>
-            <p className="mt-1 text-sm">
+          <div className="empty-state py-12">
+            <div className="w-20 h-20 bg-surface-100 rounded-2xl flex items-center justify-center mb-4">
+              <svg className="empty-state-icon w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="empty-state-title">No session history</p>
+            <p className="empty-state-text">
               {searchTerm || dateFilter !== 'all'
                 ? 'Try adjusting your search or filters'
                 : 'Complete your first session to see it here'}
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="px-5 py-4 space-y-4">
             {sortedDates.map(dateKey => {
               const daySessions = groupedByDate.get(dateKey) || [];
               const parsedDate = parseISO(dateKey);
-              const formattedDate = isValid(parsedDate)
-                ? format(parsedDate, 'EEEE, MMMM d, yyyy')
-                : dateKey;
 
               return (
                 <div key={dateKey}>
                   {/* Date Header */}
-                  <div className="px-4 py-2 bg-gray-100 sticky top-0 z-10">
-                    <span className="text-sm font-semibold text-gray-600">{formattedDate}</span>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary-500 flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">
+                        {isValid(parsedDate) ? format(parsedDate, 'd') : '?'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-surface-800">
+                        {isValid(parsedDate) ? format(parsedDate, 'EEEE') : 'Unknown'}
+                      </p>
+                      <p className="text-xs text-surface-500">
+                        {isValid(parsedDate) ? format(parsedDate, 'MMMM yyyy') : ''}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Sessions for this date */}
-                  {daySessions.map(session => {
-                    const stats = getSessionStats(session);
-                    const isExpanded = expandedSessions.has(session.id);
+                  <div className="space-y-3">
+                    {daySessions.map(session => {
+                      const stats = getSessionStats(session);
+                      const isExpanded = expandedSessions.has(session.id);
 
-                    return (
-                      <div
-                        key={session.id}
-                        className="bg-white border-b border-gray-100"
-                      >
-                        {/* Session Summary (clickable) */}
-                        <button
-                          onClick={() => toggleExpanded(session.id)}
-                          className="w-full p-4 text-left hover:bg-gray-50"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-gray-900">{session.name}</span>
-                                {session.workoutName && (
-                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
-                                    {session.workoutName}
+                      return (
+                        <div key={session.id} className="card overflow-hidden">
+                          {/* Session Summary */}
+                          <button
+                            onClick={() => toggleExpanded(session.id)}
+                            className="w-full text-left -m-5 p-5 hover:bg-surface-50 transition-colors"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-bold text-surface-800">{session.name}</span>
+                                  {session.workoutCategory && (
+                                    <span className={session.workoutCategory === 'Strength' ? 'tag-strength' : 'tag-mobility'}>
+                                      {session.workoutCategory}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-sm text-surface-500 mt-1">
+                                  {session.exercises.length} exercise{session.exercises.length !== 1 ? 's' : ''} &middot; {stats.completedSets}/{stats.totalSets} sets
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <svg
+                                  className={`w-5 h-5 text-surface-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
+                            </div>
+
+                            {/* Exercise preview when collapsed */}
+                            {!isExpanded && (
+                              <div className="mt-3 flex flex-wrap gap-1.5">
+                                {session.exercises.slice(0, 3).map(ex => (
+                                  <span
+                                    key={ex.id}
+                                    className="px-2.5 py-1 bg-surface-100 text-surface-600 rounded-lg text-xs font-medium"
+                                  >
+                                    {ex.exerciseName}
+                                  </span>
+                                ))}
+                                {session.exercises.length > 3 && (
+                                  <span className="px-2.5 py-1 bg-surface-100 text-surface-500 rounded-lg text-xs font-medium">
+                                    +{session.exercises.length - 3} more
                                   </span>
                                 )}
                               </div>
-                              <div className="text-sm text-gray-500 mt-1">
-                                {session.exercises.length} exercise{session.exercises.length !== 1 ? 's' : ''} &middot; {stats.completedSets}/{stats.totalSets} sets
+                            )}
+                          </button>
+
+                          {/* Expanded Details */}
+                          {isExpanded && (
+                            <div className="mt-5 pt-5 border-t border-surface-100">
+                              <div className="bg-surface-50 rounded-xl p-4">
+                                {renderSessionExercises(session)}
+
+                                {session.notes && (
+                                  <div className="mt-4 pt-4 border-t border-surface-200">
+                                    <div className="text-xs font-semibold text-surface-500 uppercase tracking-wide mb-2">Notes</div>
+                                    <p className="text-sm text-surface-700">{session.notes}</p>
+                                  </div>
+                                )}
                               </div>
+
+                              {/* Volume Stats */}
                               {stats.totalVolume > 0 && (
-                                <div className="text-sm text-gray-400">
-                                  {stats.totalVolume.toLocaleString()} kgs total volume
+                                <div className="mt-4 p-4 bg-success-50 rounded-xl">
+                                  <div className="flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-success-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                    </svg>
+                                    <span className="text-sm font-semibold text-success-700">
+                                      {stats.totalVolume.toLocaleString()} kgs total volume
+                                    </span>
+                                  </div>
                                 </div>
                               )}
-                            </div>
-                            <svg
-                              className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </div>
 
-                          {/* Exercise preview when collapsed */}
-                          {!isExpanded && (
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              {session.exercises.slice(0, 4).map(ex => (
-                                <span
-                                  key={ex.id}
-                                  className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
-                                >
-                                  {ex.exerciseName}
-                                </span>
-                              ))}
-                              {session.exercises.length > 4 && (
-                                <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
-                                  +{session.exercises.length - 4} more
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </button>
-
-                        {/* Expanded Details */}
-                        {isExpanded && (
-                          <div className="px-4 pb-4 bg-gray-50">
-                            <div className="bg-white rounded-lg p-4 border border-gray-200">
-                              {renderSessionExercises(session)}
-
-                              {session.notes && (
-                                <div className="mt-4 pt-3 border-t border-gray-100">
-                                  <div className="text-xs font-medium text-gray-500 mb-1">Notes</div>
-                                  <p className="text-sm text-gray-700">{session.notes}</p>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="mt-3 space-y-2">
-                              {/* Edit Button */}
-                              <button
-                                onClick={() => setEditingSession(session)}
-                                className="w-full py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-medium flex items-center justify-center gap-2"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                                Edit Session
-                              </button>
-
-                              {/* Delete Button */}
-                              {deleteConfirmId === session.id ? (
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => handleDeleteSession(session.id)}
-                                    className="flex-1 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700"
-                                  >
-                                    Confirm Delete
-                                  </button>
-                                  <button
-                                    onClick={() => setDeleteConfirmId(null)}
-                                    className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              ) : (
+                              {/* Action Buttons */}
+                              <div className="mt-4 flex gap-3">
                                 <button
-                                  onClick={() => setDeleteConfirmId(session.id)}
-                                  className="w-full py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium flex items-center justify-center gap-2"
+                                  onClick={() => setEditingSession(session)}
+                                  className="btn-secondary flex-1"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                   </svg>
-                                  Delete Session
+                                  Edit
                                 </button>
-                              )}
+
+                                {deleteConfirmId === session.id ? (
+                                  <>
+                                    <button
+                                      onClick={() => handleDeleteSession(session.id)}
+                                      className="btn-danger flex-1"
+                                    >
+                                      Confirm
+                                    </button>
+                                    <button
+                                      onClick={() => setDeleteConfirmId(null)}
+                                      className="btn-secondary flex-1"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeleteConfirmId(session.id)}
+                                    className="flex-1 py-3 text-red-500 hover:bg-red-50 rounded-full font-semibold transition-colors flex items-center justify-center gap-2"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}

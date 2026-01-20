@@ -1,20 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
 }
 
 body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  background-color: #f9fafb;
+  background-color: #F9FAFB;
+  color: #1F2937;
 }
 
 #root {
@@ -23,6 +27,163 @@ body {
 
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    line-height: 1.3;
+  }
+}
+
+@layer components {
+  /* Card Component */
+  .card {
+    @apply bg-white rounded-2xl shadow-card p-5 transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply hover:shadow-card-hover hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  /* Button Components */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 active:scale-95;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-500 text-white px-6 py-3 shadow-button hover:bg-primary-600 hover:shadow-button-hover;
+  }
+
+  .btn-secondary {
+    @apply btn bg-surface-100 text-surface-800 px-6 py-3 hover:bg-surface-200;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-primary-500 px-4 py-2 hover:bg-primary-50;
+  }
+
+  .btn-success {
+    @apply btn bg-success-500 text-white px-6 py-3 hover:bg-success-600;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-500 text-white px-6 py-3 hover:bg-red-600;
+  }
+
+  .btn-outline {
+    @apply btn border-2 border-surface-200 text-surface-700 px-6 py-3 hover:border-primary-500 hover:text-primary-500;
+  }
+
+  .btn-sm {
+    @apply px-4 py-2 text-sm;
+  }
+
+  .btn-lg {
+    @apply px-8 py-4 text-lg;
+  }
+
+  /* Input Components */
+  .input {
+    @apply w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-surface-800 placeholder-surface-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500;
+  }
+
+  .input-sm {
+    @apply px-3 py-2 text-sm rounded-lg;
+  }
+
+  /* Tag/Badge Components */
+  .tag {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .tag-strength {
+    @apply tag bg-strength-100 text-strength-600;
+  }
+
+  .tag-mobility {
+    @apply tag bg-mobility-100 text-mobility-800;
+  }
+
+  .tag-success {
+    @apply tag bg-success-100 text-success-600;
+  }
+
+  /* Navigation Tab */
+  .nav-tab {
+    @apply flex flex-col items-center justify-center gap-0.5 py-2 transition-all duration-200;
+  }
+
+  .nav-tab-active {
+    @apply text-primary-500;
+  }
+
+  .nav-tab-inactive {
+    @apply text-surface-400 hover:text-surface-600;
+  }
+
+  /* Modal/Sheet */
+  .modal-backdrop {
+    @apply fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center animate-fade-in;
+  }
+
+  .modal-content {
+    @apply bg-white w-full sm:max-w-lg sm:rounded-2xl max-h-[90vh] overflow-hidden flex flex-col animate-slide-up;
+  }
+
+  .modal-header {
+    @apply bg-primary-500 text-white p-5 flex items-center justify-between;
+  }
+
+  /* Category Pills */
+  .pill {
+    @apply px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap;
+  }
+
+  .pill-active {
+    @apply bg-primary-500 text-white shadow-button;
+  }
+
+  .pill-inactive {
+    @apply bg-surface-100 text-surface-600 hover:bg-surface-200;
+  }
+
+  /* Progress Indicator */
+  .progress-ring {
+    @apply relative w-12 h-12;
+  }
+
+  .progress-ring-circle {
+    @apply stroke-current transition-all duration-300;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
+
+  /* Accordion */
+  .accordion-header {
+    @apply p-4 flex items-center justify-between cursor-pointer transition-colors duration-200 hover:bg-surface-50;
+  }
+
+  .accordion-content {
+    @apply overflow-hidden transition-all duration-300;
+  }
+
+  /* Empty State */
+  .empty-state {
+    @apply flex flex-col items-center justify-center p-8 text-center;
+  }
+
+  .empty-state-icon {
+    @apply w-16 h-16 text-surface-300 mb-4;
+  }
+
+  .empty-state-title {
+    @apply text-lg font-semibold text-surface-700 mb-2;
+  }
+
+  .empty-state-text {
+    @apply text-surface-500 mb-4;
+  }
 }
 
 @layer utilities {
@@ -41,6 +202,38 @@ body {
   .safe-right {
     padding-right: env(safe-area-inset-right);
   }
+
+  /* Touch target sizing */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Text utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Gradient backgrounds */
+  .gradient-strength {
+    background: linear-gradient(135deg, #e64d52 0%, #FF595E 100%);
+  }
+
+  .gradient-mobility {
+    background: linear-gradient(135deg, #e6a63b 0%, #FFBC42 100%);
+  }
+
+  .gradient-primary {
+    background: linear-gradient(135deg, #00308F 0%, #335faf 100%);
+  }
+
+  .gradient-success {
+    background: linear-gradient(135deg, #357266 0%, #47877f 100%);
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    @apply bg-surface-200 animate-pulse rounded-lg;
+  }
 }
 
 /* Hide number input spinners */
@@ -56,18 +249,30 @@ input[type="number"] {
 
 /* Custom scrollbar for webkit browsers */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
+  background: #D1D5DB;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #9CA3AF;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  background-color: rgba(0, 48, 143, 0.2);
+  color: #00308F;
 }

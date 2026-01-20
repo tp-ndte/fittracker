@@ -170,14 +170,14 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50">
-      <div className="bg-white w-full sm:max-w-lg sm:rounded-lg max-h-[95vh] overflow-hidden flex flex-col">
+    <div className="modal-backdrop">
+      <div className="modal-content w-full sm:max-w-lg max-h-[95vh] overflow-hidden flex flex-col animate-slide-up">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">
+        <div className="flex items-center justify-between p-5 border-b border-surface-200">
+          <h2 className="text-xl font-bold text-surface-800">
             {isEditing ? 'Edit Workout' : 'Create Workout'}
           </h2>
-          <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-700">
+          <button onClick={onClose} className="p-2 text-surface-400 hover:text-surface-600 rounded-full hover:bg-surface-100 transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -185,39 +185,39 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
         </div>
 
         {/* Form */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {/* Workout Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Workout Name *</label>
+            <label className="block text-sm font-semibold text-surface-700 mb-2">Workout Name *</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="input"
               placeholder="e.g., Push Day, Leg Day"
             />
           </div>
 
           {/* Category */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-            <div className="flex gap-2">
+            <label className="block text-sm font-semibold text-surface-700 mb-2">Category *</label>
+            <div className="flex gap-3">
               <button
                 onClick={() => setCategory('Strength')}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium ${
+                className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-200 ${
                   category === 'Strength'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'gradient-strength text-white shadow-md'
+                    : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
                 }`}
               >
                 Strength
               </button>
               <button
                 onClick={() => setCategory('Mobility')}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium ${
+                className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-200 ${
                   category === 'Mobility'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'gradient-mobility text-white shadow-md'
+                    : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
                 }`}
               >
                 Mobility
@@ -227,25 +227,25 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <label className="block text-sm font-semibold text-surface-700 mb-2">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="input resize-none"
               placeholder="Optional description..."
             />
           </div>
 
           {/* Exercises */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">Exercises</label>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-semibold text-surface-700">Exercises</label>
               {exercises.length >= 2 && (
                 <button
                   onClick={() => setSupersetMode(!supersetMode)}
-                  className={`text-sm font-medium ${
-                    supersetMode ? 'text-orange-600' : 'text-gray-500 hover:text-orange-600'
+                  className={`text-sm font-semibold transition-colors ${
+                    supersetMode ? 'text-strength-500' : 'text-surface-500 hover:text-strength-500'
                   }`}
                 >
                   {supersetMode ? 'Cancel Superset' : 'Create Superset'}
@@ -254,14 +254,14 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
             </div>
 
             {supersetMode && (
-              <div className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                <p className="text-sm text-orange-800">
+              <div className="mb-4 p-4 bg-strength-50 border border-strength-200 rounded-xl">
+                <p className="text-sm text-strength-700 font-medium">
                   Select 2 or more exercises to group as a superset
                 </p>
                 {selectedForSuperset.size >= 2 && (
                   <button
                     onClick={createSuperset}
-                    className="mt-2 px-4 py-1 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700"
+                    className="mt-3 px-4 py-2 gradient-strength text-white rounded-full text-sm font-semibold shadow-md hover:shadow-lg transition-all"
                   >
                     Create Superset ({selectedForSuperset.size} selected)
                   </button>
@@ -269,37 +269,37 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
               </div>
             )}
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               {getGroupedExercises().map((item) => {
                 if ('type' in item && item.type === 'superset') {
                   return (
                     <div
                       key={item.groupId}
-                      className="border-2 border-orange-300 rounded-lg overflow-hidden bg-orange-50"
+                      className="border-2 border-strength-300 rounded-2xl overflow-hidden bg-strength-50"
                     >
-                      <div className="px-3 py-2 bg-orange-100 flex items-center justify-between">
-                        <span className="text-sm font-medium text-orange-800">
+                      <div className="px-4 py-3 bg-strength-100 flex items-center justify-between">
+                        <span className="text-sm font-semibold text-strength-700">
                           Superset ({item.exercises.length} exercises)
                         </span>
                         <button
                           onClick={() => {
                             item.exercises.forEach(ex => removeFromSuperset(ex.id));
                           }}
-                          className="text-xs text-orange-600 hover:text-orange-800"
+                          className="text-xs font-medium text-strength-600 hover:text-strength-800 transition-colors"
                         >
                           Ungroup
                         </button>
                       </div>
-                      <div className="divide-y divide-orange-200">
+                      <div className="divide-y divide-strength-200">
                         {item.exercises.map((ex, exIdx) => (
-                          <div key={ex.id} className="p-3 bg-white">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium text-gray-900">
+                          <div key={ex.id} className="p-4 bg-white">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="font-semibold text-surface-800">
                                 {exIdx + 1}. {ex.exerciseName}
                               </span>
                               <button
                                 onClick={() => removeExercise(ex.id)}
-                                className="text-red-500 hover:text-red-700"
+                                className="text-red-400 hover:text-red-600 transition-colors"
                               >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -308,22 +308,22 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
                             </div>
                             <div className="flex items-center gap-4">
                               <div className="flex items-center gap-2">
-                                <label className="text-sm text-gray-600">Sets:</label>
+                                <label className="text-sm text-surface-500 font-medium">Sets:</label>
                                 <input
                                   type="number"
                                   value={ex.defaultSets}
                                   onChange={(e) => updateExercise(ex.id, 'defaultSets', Number(e.target.value))}
-                                  className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                                  className="w-16 px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-center font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                   min="1"
                                 />
                               </div>
                               <div className="flex items-center gap-2">
-                                <label className="text-sm text-gray-600">Reps:</label>
+                                <label className="text-sm text-surface-500 font-medium">Reps:</label>
                                 <input
                                   type="number"
                                   value={ex.defaultReps}
                                   onChange={(e) => updateExercise(ex.id, 'defaultReps', Number(e.target.value))}
-                                  className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                                  className="w-16 px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-center font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                   min="1"
                                 />
                               </div>
@@ -339,36 +339,36 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
                 return (
                   <div
                     key={ex.id}
-                    className={`p-3 border rounded-lg ${
+                    className={`p-4 rounded-xl transition-all duration-200 ${
                       supersetMode && selectedForSuperset.has(ex.id)
-                        ? 'border-orange-500 bg-orange-50'
-                        : 'border-gray-200 bg-white'
+                        ? 'border-2 border-strength-500 bg-strength-50'
+                        : 'border border-surface-200 bg-white hover:shadow-card'
                     }`}
                     onClick={() => supersetMode && toggleSupersetSelection(ex.id)}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
                         {supersetMode && (
                           <div
-                            className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
                               selectedForSuperset.has(ex.id)
-                                ? 'border-orange-500 bg-orange-500 text-white'
-                                : 'border-gray-300'
+                                ? 'border-strength-500 bg-strength-500 text-white'
+                                : 'border-surface-300'
                             }`}
                           >
                             {selectedForSuperset.has(ex.id) && (
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                               </svg>
                             )}
                           </div>
                         )}
-                        <span className="font-medium text-gray-900">{ex.exerciseName}</span>
+                        <span className="font-semibold text-surface-800">{ex.exerciseName}</span>
                       </div>
                       {!supersetMode && (
                         <button
                           onClick={() => removeExercise(ex.id)}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-red-400 hover:text-red-600 transition-colors"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -379,22 +379,22 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
                     {!supersetMode && (
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
-                          <label className="text-sm text-gray-600">Sets:</label>
+                          <label className="text-sm text-surface-500 font-medium">Sets:</label>
                           <input
                             type="number"
                             value={ex.defaultSets}
                             onChange={(e) => updateExercise(ex.id, 'defaultSets', Number(e.target.value))}
-                            className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                            className="w-16 px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-center font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                             min="1"
                           />
                         </div>
                         <div className="flex items-center gap-2">
-                          <label className="text-sm text-gray-600">Reps:</label>
+                          <label className="text-sm text-surface-500 font-medium">Reps:</label>
                           <input
                             type="number"
                             value={ex.defaultReps}
                             onChange={(e) => updateExercise(ex.id, 'defaultReps', Number(e.target.value))}
-                            className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                            className="w-16 px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-center font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                             min="1"
                           />
                         </div>
@@ -408,7 +408,7 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
             {/* Add Exercise Button */}
             <button
               onClick={() => setShowExercisePicker(true)}
-              className="mt-3 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 font-medium"
+              className="mt-4 w-full py-3 border-2 border-dashed border-surface-300 rounded-xl text-surface-500 hover:border-primary-500 hover:text-primary-500 font-semibold transition-all duration-200"
             >
               + Add Exercise
             </button>
@@ -416,17 +416,17 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200">
-          <div className="flex gap-2">
+        <div className="p-5 border-t border-surface-200 bg-surface-50">
+          <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 py-3 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+              className="btn-secondary flex-1"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+              className="btn-primary flex-1"
             >
               Save Workout
             </button>
@@ -436,13 +436,18 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
 
       {/* Exercise Picker Modal */}
       {showExercisePicker && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-[60]">
-          <div className="bg-white w-full sm:max-w-lg sm:rounded-lg max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-bold">Add Exercise</h3>
-                <button onClick={() => setShowExercisePicker(false)} className="text-2xl text-gray-500">
-                  &times;
+        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-[60] animate-fade-in">
+          <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl max-h-[80vh] overflow-hidden flex flex-col animate-slide-up">
+            <div className="p-5 border-b border-surface-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-surface-800">Add Exercise</h3>
+                <button
+                  onClick={() => setShowExercisePicker(false)}
+                  className="p-2 text-surface-400 hover:text-surface-600 rounded-full hover:bg-surface-100 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
               <input
@@ -450,17 +455,17 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search exercises..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="input mb-3"
               />
-              <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                 {['All', ...exerciseCategories.filter(c => c !== 'All').sort((a, b) => a.localeCompare(b))].map(cat => (
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${
+                    className={`pill whitespace-nowrap ${
                       selectedCategory === cat
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700'
+                        ? 'bg-primary-500 text-white'
+                        : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
                     }`}
                   >
                     {cat}
@@ -470,16 +475,16 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
             </div>
             <div className="flex-1 overflow-y-auto">
               {filteredExercises.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">No exercises found</div>
+                <div className="p-8 text-center text-surface-500">No exercises found</div>
               ) : (
                 filteredExercises.map(ex => (
                   <button
                     key={ex.id}
                     onClick={() => addExercise(ex)}
-                    className="w-full text-left p-4 border-b border-gray-200 hover:bg-gray-50"
+                    className="w-full text-left p-4 border-b border-surface-100 hover:bg-surface-50 transition-colors"
                   >
-                    <div className="font-medium">{ex.name}</div>
-                    <div className="text-sm text-gray-500">{ex.category}</div>
+                    <div className="font-semibold text-surface-800">{ex.name}</div>
+                    <div className="text-sm text-surface-500">{ex.category}</div>
                   </button>
                 ))
               )}

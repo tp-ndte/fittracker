@@ -10,7 +10,15 @@
       "Bash(git push:*)",
       "Bash(git remote remove:*)",
       "Bash(gh auth:*)",
-      "Bash(git remote set-url:*)"
+      "Bash(git remote set-url:*)",
+      "WebFetch(domain:dribbble.com)",
+      "WebSearch",
+      "Bash(lsof:*)",
+      "WebFetch(domain:www.flutterflow.io)",
+      "WebFetch(domain:brandfetch.com)",
+      "Bash(curl:*)",
+      "Bash(npm run dev:*)",
+      "Bash(grep:*)"
     ]
   }
 }

@@ -39,6 +39,7 @@ export interface Session {
   notes?: string;
   workoutId?: string;    // Reference to the Workout used
   workoutName?: string;  // Name of the Workout used
+  workoutCategory?: 'Strength' | 'Mobility';  // Type of workout
 }
 
 // WorkoutExercise - an exercise within a saved Workout
