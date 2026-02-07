@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getAllExercises, getAllCategories, deleteExercise } from '../utils/exerciseUtils';
 import { Exercise } from '../types';
 import { ExerciseEditor } from './ExerciseEditor';
+import { ExerciseStats } from './ExerciseStats';
 
 export function ExerciseLibrary() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -183,19 +184,21 @@ export function ExerciseLibrary() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-5">
-              {selectedExercise.details ? (
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              {selectedExercise.details && (
                 <div>
                   <h3 className="font-bold text-surface-800 mb-3">Details</h3>
                   <div className="bg-surface-50 rounded-xl p-4">
                     <p className="text-surface-700 whitespace-pre-wrap">{selectedExercise.details}</p>
                   </div>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-surface-500">No additional details for this exercise</p>
-                </div>
               )}
+
+              {/* Exercise Stats */}
+              <ExerciseStats
+                exerciseId={selectedExercise.id}
+                exerciseName={selectedExercise.name}
+              />
             </div>
 
             {/* Action Buttons */}

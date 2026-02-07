@@ -48,11 +48,25 @@ CREATE TABLE IF NOT EXISTS deleted_exercises (
   UNIQUE(device_id, exercise_id)
 );
 
+-- Programs table (training programs with sequential workouts)
+CREATE TABLE IF NOT EXISTS programs (
+  id TEXT PRIMARY KEY,
+  device_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT true,
+  workouts JSONB NOT NULL DEFAULT '[]',
+  last_completed_workout_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  archived_at TIMESTAMPTZ
+);
+
 -- Create indexes for faster queries by device_id
 CREATE INDEX IF NOT EXISTS idx_exercises_device_id ON exercises(device_id);
 CREATE INDEX IF NOT EXISTS idx_workouts_device_id ON workouts(device_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_device_id ON sessions(device_id);
 CREATE INDEX IF NOT EXISTS idx_deleted_exercises_device_id ON deleted_exercises(device_id);
+CREATE INDEX IF NOT EXISTS idx_programs_device_id ON programs(device_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_program_id ON sessions(program_id);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE exercises ENABLE ROW LEVEL SECURITY;
@@ -73,4 +87,9 @@ CREATE POLICY "Allow all operations on sessions" ON sessions
   FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Allow all operations on deleted_exercises" ON deleted_exercises
+  FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE programs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all operations on programs" ON programs
   FOR ALL USING (true) WITH CHECK (true);

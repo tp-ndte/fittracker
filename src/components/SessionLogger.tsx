@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Session, SessionExercise, Workout, Exercise } from '../types';
+import { Session, SessionExercise, Workout, Exercise, Program } from '../types';
 import { getAllExercises, getAllCategories } from '../utils/exerciseUtils';
-import { addSession, updateSession, deleteSession, getLastExerciseHistory, ExerciseHistory } from '../utils/storage';
+import { addSession, updateSession, deleteSession, getLastExerciseHistory, ExerciseHistory, incrementProgramWorkoutCount } from '../utils/storage';
 import { format } from 'date-fns';
+import { ExerciseStats } from './ExerciseStats';
 
 interface SessionLoggerProps {
   session?: Session;
   onClose: () => void;
   onSave: () => void;
   initialWorkout?: Workout;
+  programId?: string;           // Auto-count toward program (from "Start Next Workout")
+  activeProgram?: Program | null; // Show "count toward program?" if workout is in program
 }
 
 function workoutToExercises(workout: Workout): SessionExercise[] {
@@ -27,7 +30,7 @@ function workoutToExercises(workout: Workout): SessionExercise[] {
   }));
 }
 
-export function SessionLogger({ session, onClose, onSave, initialWorkout }: SessionLoggerProps) {
+export function SessionLogger({ session, onClose, onSave, initialWorkout, programId, activeProgram }: SessionLoggerProps) {
   const getInitialState = () => {
     if (session) {
       return {
@@ -75,6 +78,8 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
   const [exerciseHistory, setExerciseHistory] = useState<Map<string, ExerciseHistory>>(new Map());
   const [showDetailsFor, setShowDetailsFor] = useState<Set<string>>(new Set());
+  const [showProgramPrompt, setShowProgramPrompt] = useState(false);
+  const [showStatsFor, setShowStatsFor] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -286,14 +291,14 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
 
   const isNewWorkoutSession = !session && !!initialWorkout;
 
-  const handleSave = async () => {
-    const finalName = isNewWorkoutSession ? workoutName || 'Workout Session' : sessionName;
-    if (!finalName.trim() || exercises.length === 0) {
-      alert('Please add a session name and at least one exercise');
-      return;
-    }
+  // Check if this workout is in the active program (and not already started from program)
+  const workoutInProgram = !programId && activeProgram && workoutId
+    ? activeProgram.workouts.find(w => w.workoutId === workoutId)
+    : null;
 
-    const sessionData: Session = {
+  const buildSessionData = (countTowardProgram: boolean): Session => {
+    const finalName = isNewWorkoutSession ? workoutName || 'Workout Session' : sessionName;
+    return {
       id: session?.id || `${Date.now()}`,
       date: isNewWorkoutSession ? format(new Date(), 'yyyy-MM-dd') : sessionDate,
       name: finalName,
@@ -301,8 +306,13 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
       notes,
       workoutId,
       workoutName,
-      workoutCategory
+      workoutCategory,
+      programId: countTowardProgram ? (programId || activeProgram?.id) : undefined
     };
+  };
+
+  const saveSession = async (countTowardProgram: boolean) => {
+    const sessionData = buildSessionData(countTowardProgram);
 
     if (session) {
       await updateSession(session.id, sessionData);
@@ -310,8 +320,39 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
       await addSession(sessionData);
     }
 
+    // Increment program workout count if counting toward program
+    if (countTowardProgram && workoutId) {
+      const pid = programId || activeProgram?.id;
+      if (pid) {
+        await incrementProgramWorkoutCount(pid, workoutId);
+      }
+    }
+
     onSave();
     onClose();
+  };
+
+  const handleSave = async () => {
+    const finalName = isNewWorkoutSession ? workoutName || 'Workout Session' : sessionName;
+    if (!finalName.trim() || exercises.length === 0) {
+      alert('Please add a session name and at least one exercise');
+      return;
+    }
+
+    // If started from program "Start Next Workout", auto-count
+    if (programId) {
+      await saveSession(true);
+      return;
+    }
+
+    // If workout is in active program, ask user
+    if (workoutInProgram && !session) {
+      setShowProgramPrompt(true);
+      return;
+    }
+
+    // Normal save without program
+    await saveSession(false);
   };
 
   const handleDelete = async () => {
@@ -366,12 +407,11 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
     return result;
   };
 
-  const getExerciseCategory = (exerciseId: string): string | undefined => {
-    return allExercises.find(ex => ex.id === exerciseId)?.category;
-  };
-
   const shouldShowHistory = (exerciseId: string): boolean => {
-    const category = getExerciseCategory(exerciseId)?.toLowerCase();
+    const exercise = allExercises.find(ex => ex.id === exerciseId);
+    if (exercise?.showHistory !== undefined) return exercise.showHistory;
+    // Fallback: default based on category
+    const category = exercise?.category?.toLowerCase();
     return category !== 'warm up' && category !== 'mobility';
   };
 
@@ -422,9 +462,20 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
           <button
             onClick={(e) => {
               e.stopPropagation();
+              setShowStatsFor({ id: exercise.exerciseId, name: exercise.exerciseName });
+            }}
+            className="w-8 h-8 rounded-lg bg-primary-50 text-primary-500 flex items-center justify-center hover:bg-primary-100 transition-colors ml-2 flex-shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
               removeExercise(exercise.id);
             }}
-            className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors ml-2 flex-shrink-0"
+            className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors flex-shrink-0"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -757,6 +808,71 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout }: Sess
             </div>
           )}
         </div>
+
+        {/* Exercise Stats Modal */}
+        {showStatsFor && (
+          <div className="absolute inset-0 bg-white flex flex-col z-10 animate-slide-up">
+            <div className="gradient-primary text-white p-5 safe-top">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setShowStatsFor(null)}
+                  className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <h2 className="text-lg font-bold truncate mx-3">{showStatsFor.name}</h2>
+                <div className="w-10" />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              <ExerciseStats
+                exerciseId={showStatsFor.id}
+                exerciseName={showStatsFor.name}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Program Prompt */}
+        {showProgramPrompt && activeProgram && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 p-5">
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full animate-scale-in">
+              <div className="text-center mb-5">
+                <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-7 h-7 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-surface-800">Count toward program?</h3>
+                <p className="text-sm text-surface-500 mt-2">
+                  Count this session toward <span className="font-semibold text-surface-700">{activeProgram.name}</span>?
+                </p>
+              </div>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    setShowProgramPrompt(false);
+                    saveSession(true);
+                  }}
+                  className="btn-success w-full py-3"
+                >
+                  Yes, count it
+                </button>
+                <button
+                  onClick={() => {
+                    setShowProgramPrompt(false);
+                    saveSession(false);
+                  }}
+                  className="btn-secondary w-full py-3"
+                >
+                  No, just save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Exercise Picker Modal */}
         {showExercisePicker && (

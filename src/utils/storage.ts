@@ -1,4 +1,4 @@
-import { Session, Workout, Exercise } from '../types';
+import { Session, Workout, Exercise, Program, ProgramWorkout } from '../types';
 import { supabase, getDeviceId } from '../lib/supabase';
 
 // ============================================
@@ -50,7 +50,8 @@ export const loadSessions = async (): Promise<Session[]> => {
     duration: row.duration,
     notes: row.notes,
     workoutId: row.workout_id,
-    workoutName: row.workout_name
+    workoutName: row.workout_name,
+    programId: row.program_id
   }));
 };
 
@@ -66,7 +67,8 @@ export const addSession = async (session: Session): Promise<void> => {
     duration: session.duration,
     notes: session.notes,
     workout_id: session.workoutId,
-    workout_name: session.workoutName
+    workout_name: session.workoutName,
+    program_id: session.programId
   });
 };
 
@@ -82,7 +84,8 @@ export const updateSession = async (sessionId: string, updatedSession: Session):
       duration: updatedSession.duration,
       notes: updatedSession.notes,
       workout_id: updatedSession.workoutId,
-      workout_name: updatedSession.workoutName
+      workout_name: updatedSession.workoutName,
+      program_id: updatedSession.programId
     })
     .eq('id', sessionId)
     .eq('device_id', deviceId);
@@ -186,6 +189,7 @@ export const loadWorkouts = async (): Promise<Workout[]> => {
     description: row.description,
     category: row.category,
     exercises: row.exercises,
+    favorite: row.favorite || false,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }));
@@ -201,6 +205,7 @@ export const addWorkout = async (workout: Workout): Promise<void> => {
     description: workout.description,
     category: workout.category,
     exercises: workout.exercises,
+    favorite: workout.favorite || false,
     created_at: workout.createdAt,
     updated_at: workout.updatedAt
   });
@@ -233,6 +238,16 @@ export const deleteWorkout = async (workoutId: string): Promise<void> => {
     .eq('device_id', deviceId);
 };
 
+export const toggleWorkoutFavorite = async (workoutId: string, favorite: boolean): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  await supabase
+    .from('workouts')
+    .update({ favorite })
+    .eq('id', workoutId)
+    .eq('device_id', deviceId);
+};
+
 export const getWorkoutById = async (workoutId: string): Promise<Workout | undefined> => {
   const deviceId = getDeviceId();
 
@@ -253,6 +268,7 @@ export const getWorkoutById = async (workoutId: string): Promise<Workout | undef
     description: data.description,
     category: data.category,
     exercises: data.exercises,
+    favorite: data.favorite || false,
     createdAt: data.created_at,
     updatedAt: data.updated_at
   };
@@ -305,6 +321,7 @@ export const loadCustomExercises = async (): Promise<Exercise[]> => {
     name: row.name,
     category: row.category,
     details: row.details,
+    showHistory: row.show_history,
     isCustom: true,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -321,6 +338,7 @@ export const addCustomExercise = async (exercise: Exercise): Promise<void> => {
     name: exercise.name,
     category: exercise.category,
     details: exercise.details,
+    show_history: exercise.showHistory,
     created_at: now,
     updated_at: now
   });
@@ -336,6 +354,7 @@ export const updateCustomExercise = async (exerciseId: string, updatedExercise: 
       name: updatedExercise.name,
       category: updatedExercise.category,
       details: updatedExercise.details,
+      show_history: updatedExercise.showHistory,
       updated_at: now
     })
     .eq('id', exerciseId)
@@ -408,5 +427,165 @@ export const restoreExercise = async (exerciseId: string): Promise<void> => {
     .delete()
     .eq('device_id', deviceId)
     .eq('exercise_id', exerciseId);
+};
+
+// ============================================
+// PROGRAMS STORAGE (training programs)
+// ============================================
+
+export const loadActiveProgram = async (): Promise<Program | null> => {
+  const deviceId = getDeviceId();
+
+  const { data, error } = await supabase
+    .from('programs')
+    .select('*')
+    .eq('device_id', deviceId)
+    .eq('active', true)
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    if (error) console.error('Error loading active program:', error);
+    return null;
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    active: data.active,
+    workouts: data.workouts,
+    lastCompletedWorkoutId: data.last_completed_workout_id,
+    createdAt: data.created_at,
+    archivedAt: data.archived_at
+  };
+};
+
+export const loadArchivedPrograms = async (): Promise<Program[]> => {
+  const deviceId = getDeviceId();
+
+  const { data, error } = await supabase
+    .from('programs')
+    .select('*')
+    .eq('device_id', deviceId)
+    .eq('active', false)
+    .order('archived_at', { ascending: false });
+
+  if (error || !data) {
+    if (error) console.error('Error loading archived programs:', error);
+    return [];
+  }
+
+  return data.map(row => ({
+    id: row.id,
+    name: row.name,
+    active: row.active,
+    workouts: row.workouts,
+    lastCompletedWorkoutId: row.last_completed_workout_id,
+    createdAt: row.created_at,
+    archivedAt: row.archived_at
+  }));
+};
+
+export const addProgram = async (program: Program): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  // Deactivate any existing active program first
+  await supabase
+    .from('programs')
+    .update({ active: false, archived_at: new Date().toISOString() })
+    .eq('device_id', deviceId)
+    .eq('active', true);
+
+  await supabase.from('programs').insert({
+    id: program.id,
+    device_id: deviceId,
+    name: program.name,
+    active: true,
+    workouts: program.workouts,
+    last_completed_workout_id: program.lastCompletedWorkoutId || null,
+    created_at: program.createdAt
+  });
+};
+
+export const updateProgram = async (programId: string, updates: Partial<Program>): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  const updateData: Record<string, unknown> = {};
+  if (updates.name !== undefined) updateData.name = updates.name;
+  if (updates.workouts !== undefined) updateData.workouts = updates.workouts;
+  if (updates.lastCompletedWorkoutId !== undefined) updateData.last_completed_workout_id = updates.lastCompletedWorkoutId;
+  if (updates.active !== undefined) updateData.active = updates.active;
+  if (updates.archivedAt !== undefined) updateData.archived_at = updates.archivedAt;
+
+  await supabase
+    .from('programs')
+    .update(updateData)
+    .eq('id', programId)
+    .eq('device_id', deviceId);
+};
+
+export const archiveProgram = async (programId: string): Promise<void> => {
+  await updateProgram(programId, {
+    active: false,
+    archivedAt: new Date().toISOString()
+  });
+};
+
+export const incrementProgramWorkoutCount = async (programId: string, workoutId: string): Promise<void> => {
+  const deviceId = getDeviceId();
+
+  const { data } = await supabase
+    .from('programs')
+    .select('workouts')
+    .eq('id', programId)
+    .eq('device_id', deviceId)
+    .single();
+
+  if (!data) return;
+
+  const updatedWorkouts = (data.workouts as ProgramWorkout[]).map(w =>
+    w.workoutId === workoutId
+      ? { ...w, completedCount: w.completedCount + 1 }
+      : w
+  );
+
+  await supabase
+    .from('programs')
+    .update({
+      workouts: updatedWorkouts,
+      last_completed_workout_id: workoutId
+    })
+    .eq('id', programId)
+    .eq('device_id', deviceId);
+};
+
+// Get the next workout in the program sequence
+export const getNextProgramWorkout = (program: Program): ProgramWorkout | null => {
+  if (program.workouts.length === 0) return null;
+
+  const sorted = [...program.workouts].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+
+  // Check if all workouts have met their targets
+  const allCompleted = sorted.every(w => w.completedCount >= w.targetCount);
+  if (allCompleted) return null;
+
+  // Find starting position
+  let startIndex = 0;
+  if (program.lastCompletedWorkoutId) {
+    const lastIdx = sorted.findIndex(w => w.workoutId === program.lastCompletedWorkoutId);
+    if (lastIdx !== -1) {
+      startIndex = (lastIdx + 1) % sorted.length;
+    }
+  }
+
+  // Find next workout that hasn't met its target
+  for (let i = 0; i < sorted.length; i++) {
+    const idx = (startIndex + i) % sorted.length;
+    if (sorted[idx].completedCount < sorted[idx].targetCount) {
+      return sorted[idx];
+    }
+  }
+
+  return null;
 };
 

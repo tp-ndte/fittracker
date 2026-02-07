@@ -11,7 +11,7 @@ function App() {
   const renderView = () => {
     switch (currentView) {
       case 'home':
-        return <HomeView />;
+        return <HomeView onNavigate={(view) => setCurrentView(view as View)} />;
       case 'library':
         return <WorkoutLibrary />;
       case 'exercises':

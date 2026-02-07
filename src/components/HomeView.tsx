@@ -1,89 +1,38 @@
 import { useState, useEffect } from 'react';
-import { Workout, WorkoutExercise } from '../types';
-import { loadWorkouts } from '../utils/storage';
+import { Workout, Program } from '../types';
+import { loadActiveProgram, getNextProgramWorkout, getWorkoutById } from '../utils/storage';
 import { SessionLogger } from './SessionLogger';
+import { ProgramManager } from './ProgramManager';
 
-export function HomeView() {
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
-  const [startingSession, setStartingSession] = useState<Workout | null>(null);
+interface HomeViewProps {
+  onNavigate?: (view: string) => void;
+}
+
+export function HomeView({ onNavigate }: HomeViewProps) {
+  const [activeProgram, setActiveProgram] = useState<Program | null>(null);
+  const [loadingProgram, setLoadingProgram] = useState(true);
+  const [showProgramManager, setShowProgramManager] = useState(false);
+  const [programSessionWorkout, setProgramSessionWorkout] = useState<Workout | null>(null);
 
   const loadData = async () => {
-    const workoutsData = await loadWorkouts();
-    setWorkouts(workoutsData);
+    const programData = await loadActiveProgram();
+    setActiveProgram(programData);
+    setLoadingProgram(false);
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const handleStartSession = (workout: Workout) => {
-    setSelectedWorkout(null);
-    setStartingSession(workout);
-  };
+  const handleStartProgramSession = async () => {
+    if (!activeProgram) return;
+    const nextWorkout = getNextProgramWorkout(activeProgram);
+    if (!nextWorkout) return;
 
-  const getSupersetGroups = (exercises: WorkoutExercise[]): Map<string, WorkoutExercise[]> => {
-    const groups = new Map<string, WorkoutExercise[]>();
-    exercises.forEach(ex => {
-      if (ex.supersetGroupId) {
-        const group = groups.get(ex.supersetGroupId) || [];
-        group.push(ex);
-        groups.set(ex.supersetGroupId, group);
-      }
-    });
-    return groups;
-  };
-
-  const renderExercisePreview = (exercise: WorkoutExercise, inSuperset: boolean = false) => {
-    return (
-      <div key={exercise.id} className={`${inSuperset ? 'py-2.5' : 'py-3'}`}>
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="font-medium text-surface-800">{exercise.exerciseName}</div>
-            <div className="text-sm text-surface-500">
-              {exercise.defaultSets} sets x {exercise.defaultReps} reps
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderWorkoutExercises = (workout: Workout) => {
-    const supersetGroups = getSupersetGroups(workout.exercises);
-    const processedSupersets = new Set<string>();
-
-    return (
-      <div className="divide-y divide-surface-100">
-        {workout.exercises.map(ex => {
-          if (ex.supersetGroupId) {
-            if (!processedSupersets.has(ex.supersetGroupId)) {
-              processedSupersets.add(ex.supersetGroupId);
-              const groupExercises = supersetGroups.get(ex.supersetGroupId) || [];
-              return (
-                <div key={ex.supersetGroupId} className="py-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-lg bg-strength-100 flex items-center justify-center">
-                      <svg className="w-3.5 h-3.5 text-strength-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                    </div>
-                    <span className="text-xs font-semibold text-strength-600 uppercase tracking-wide">Superset</span>
-                  </div>
-                  <div className="pl-4 border-l-2 border-strength-200 divide-y divide-surface-100">
-                    {groupExercises
-                      .sort((a, b) => (a.supersetOrder || 0) - (b.supersetOrder || 0))
-                      .map(gex => renderExercisePreview(gex, true))}
-                  </div>
-                </div>
-              );
-            }
-            return null;
-          }
-          return renderExercisePreview(ex);
-        })}
-      </div>
-    );
+    const workout = await getWorkoutById(nextWorkout.workoutId);
+    if (workout) {
+      setProgramSessionWorkout(workout);
+    }
   };
 
   const greeting = () => {
@@ -93,6 +42,18 @@ export function HomeView() {
     return 'Good evening';
   };
 
+  const nextProgramWorkout = activeProgram ? getNextProgramWorkout(activeProgram) : null;
+  const programTotalCompleted = activeProgram
+    ? activeProgram.workouts.reduce((sum, w) => sum + w.completedCount, 0)
+    : 0;
+  const programTotalTarget = activeProgram
+    ? activeProgram.workouts.reduce((sum, w) => sum + w.targetCount, 0)
+    : 0;
+  const programPercent = programTotalTarget > 0
+    ? Math.round((programTotalCompleted / programTotalTarget) * 100)
+    : 0;
+  const programComplete = activeProgram && !nextProgramWorkout;
+
   return (
     <div className="h-full flex flex-col">
       {/* Hero Section */}
@@ -100,150 +61,173 @@ export function HomeView() {
         <h2 className="text-2xl font-bold text-surface-800">{greeting()}</h2>
       </div>
 
-      {/* Section Header */}
-      <div className="px-5 pt-4 pb-3">
-        <h3 className="text-lg font-bold text-surface-800">Your Workouts</h3>
-      </div>
-
-      {/* Workout List */}
       <div className="flex-1 overflow-y-auto px-5 pb-5">
-        {workouts.length === 0 ? (
-          <div className="empty-state py-12">
-            <div className="w-20 h-20 bg-surface-100 rounded-2xl flex items-center justify-center mb-4">
-              <svg className="empty-state-icon w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <p className="empty-state-title">No workouts yet</p>
-            <p className="empty-state-text">Create workouts in the Workouts tab to get started</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {workouts.map(workout => {
-              const supersetGroups = getSupersetGroups(workout.exercises);
-              const supersetCount = supersetGroups.size;
-              const isStrength = workout.category === 'Strength';
-
-              return (
-                <div
-                  key={workout.id}
-                  onClick={() => setSelectedWorkout(workout)}
-                  className="card card-hover cursor-pointer"
-                >
-                  {/* Card Header with Gradient Accent */}
-                  <div className={`h-1.5 -mx-5 -mt-5 mb-4 rounded-t-2xl ${isStrength ? 'gradient-strength' : 'gradient-mobility'}`} />
-
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-bold text-lg text-surface-800">{workout.name}</h3>
-                      </div>
-                      <span className={isStrength ? 'tag-strength' : 'tag-mobility'}>
-                        {workout.category}
-                      </span>
+        {!loadingProgram && (
+          <>
+            {activeProgram ? (
+              /* ===== ACTIVE PROGRAM CARD ===== */
+              <div className="card !p-0 overflow-hidden">
+                <div className="h-1.5 gradient-primary" />
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="text-xs font-semibold text-primary-600 uppercase tracking-wide mb-1">Current Program</p>
+                      <h3 className="font-bold text-lg text-surface-800">{activeProgram.name}</h3>
                     </div>
-                    <div className="w-10 h-10 rounded-xl bg-surface-100 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
+                    <button
+                      onClick={() => setShowProgramManager(true)}
+                      className="text-xs font-medium text-primary-600 hover:text-primary-700 px-3 py-1.5 rounded-lg hover:bg-primary-50 transition-colors"
+                    >
+                      Manage
+                    </button>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mb-3">
+                    <div className="flex justify-between text-xs text-surface-500 mb-1.5">
+                      <span>{programTotalCompleted} of {programTotalTarget} workouts</span>
+                      <span>{programPercent}%</span>
+                    </div>
+                    <div className="h-1.5 bg-surface-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${programComplete ? 'bg-success-500' : 'bg-primary-500'}`}
+                        style={{ width: `${programPercent}%` }}
+                      />
                     </div>
                   </div>
 
-                  {workout.description && (
-                    <p className="text-sm text-surface-500 mt-2 line-clamp-2">{workout.description}</p>
+                  {/* Individual workout progress */}
+                  <div className="text-sm text-surface-600 mb-4">
+                    {[...activeProgram.workouts]
+                      .sort((a, b) => a.sequenceOrder - b.sequenceOrder)
+                      .map((w, i, arr) => (
+                        <span key={w.workoutId}>
+                          <span className={w.completedCount >= w.targetCount ? 'text-success-600 font-medium' : ''}>
+                            {w.workoutName}: {w.completedCount}/{w.targetCount}
+                          </span>
+                          {i < arr.length - 1 && <span className="text-surface-300"> &bull; </span>}
+                        </span>
+                      ))
+                    }
+                  </div>
+
+                  {/* Next workout or completion message */}
+                  {programComplete ? (
+                    <div className="bg-success-50 rounded-xl p-4 mb-4 text-center">
+                      <p className="font-bold text-success-700">Program Complete!</p>
+                      <p className="text-sm text-success-600 mt-1">All workout targets have been met</p>
+                    </div>
+                  ) : nextProgramWorkout && (
+                    <div className="bg-primary-50 rounded-xl p-3 mb-4 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary-500 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-xs text-primary-600 font-medium">Next Up</p>
+                        <p className="font-bold text-primary-800">{nextProgramWorkout.workoutName}</p>
+                      </div>
+                    </div>
                   )}
 
-                  <div className="flex items-center gap-3 mt-3 pt-3 border-t border-surface-100">
-                    <div className="flex items-center gap-1.5 text-sm text-surface-600">
-                      <svg className="w-4 h-4 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  {/* Start Next Workout button */}
+                  {!programComplete && nextProgramWorkout && (
+                    <button
+                      onClick={handleStartProgramSession}
+                      className="btn-success w-full py-3.5"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      {workout.exercises.length} exercise{workout.exercises.length !== 1 ? 's' : ''}
+                      Start Next Workout
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* ===== NO PROGRAM — TWO OPTIONS ===== */
+              <div className="space-y-4">
+                {/* Create a Program */}
+                <div className="card !p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <svg className="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                      </svg>
                     </div>
-                    {supersetCount > 0 && (
-                      <div className="flex items-center gap-1.5 text-sm text-strength-600">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    <div className="flex-1">
+                      <h3 className="font-bold text-surface-800 mb-1">Create a Program</h3>
+                      <p className="text-sm text-surface-500 mb-3">
+                        Build a structured training program with sequential workouts and track your progress
+                      </p>
+                      <button
+                        onClick={() => setShowProgramManager(true)}
+                        className="btn-primary"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
-                        {supersetCount} superset{supersetCount !== 1 ? 's' : ''}
-                      </div>
-                    )}
+                        Create Program
+                      </button>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+
+                {/* Start a One-Off Workout */}
+                <div className="card !p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-success-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <svg className="w-6 h-6 text-success-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-surface-800 mb-1">Start a One-Off Workout</h3>
+                      <p className="text-sm text-surface-500 mb-3">
+                        Pick a workout from your library and start a session without a program
+                      </p>
+                      <button
+                        onClick={() => onNavigate?.('library')}
+                        className="btn-success"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        Browse Workouts
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* Workout Preview Modal */}
-      {selectedWorkout && (
-        <div className="modal-backdrop" onClick={() => setSelectedWorkout(null)}>
-          <div
-            className="bg-white w-full h-[85vh] sm:h-auto sm:max-h-[85vh] sm:max-w-lg sm:rounded-2xl overflow-hidden flex flex-col animate-slide-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className={`p-5 text-white ${selectedWorkout.category === 'Strength' ? 'gradient-strength' : 'gradient-mobility'}`}>
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="inline-block px-2.5 py-1 bg-white/20 rounded-full text-xs font-semibold mb-2">
-                    {selectedWorkout.category}
-                  </span>
-                  <h2 className="text-2xl font-bold">{selectedWorkout.name}</h2>
-                  <p className="text-white/80 text-sm mt-1">
-                    {selectedWorkout.exercises.length} exercise{selectedWorkout.exercises.length !== 1 ? 's' : ''}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSelectedWorkout(null)}
-                  className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-5">
-              {selectedWorkout.description && (
-                <div className="mb-5 p-4 bg-surface-50 rounded-xl">
-                  <p className="text-surface-700">{selectedWorkout.description}</p>
-                </div>
-              )}
-
-              <h3 className="font-bold text-surface-800 mb-3">Exercises</h3>
-              <div className="bg-surface-50 rounded-xl p-4">
-                {renderWorkoutExercises(selectedWorkout)}
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-5 border-t border-surface-100 bg-white">
-              <button
-                onClick={() => handleStartSession(selectedWorkout)}
-                className="btn-success w-full py-4 text-lg"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Start Session
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Session Logger (from program) */}
+      {programSessionWorkout && (
+        <SessionLogger
+          initialWorkout={programSessionWorkout}
+          programId={activeProgram?.id}
+          activeProgram={activeProgram}
+          onClose={() => setProgramSessionWorkout(null)}
+          onSave={() => {
+            setProgramSessionWorkout(null);
+            loadData();
+          }}
+        />
       )}
 
-      {/* Session Logger */}
-      {startingSession && (
-        <SessionLogger
-          initialWorkout={startingSession}
-          onClose={() => setStartingSession(null)}
-          onSave={() => {
-            setStartingSession(null);
+      {/* Program Manager */}
+      {showProgramManager && (
+        <ProgramManager
+          activeProgram={activeProgram}
+          onClose={() => setShowProgramManager(false)}
+          onUpdate={() => {
+            setShowProgramManager(false);
             loadData();
           }}
         />

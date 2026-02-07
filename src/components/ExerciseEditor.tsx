@@ -12,10 +12,18 @@ interface ExerciseEditorProps {
 export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProps) => {
   const isEditing = !!exercise;
 
+  const getDefaultShowHistory = (cat: string): boolean => {
+    const lower = cat.toLowerCase();
+    return lower !== 'mobility' && lower !== 'warm up';
+  };
+
   const [name, setName] = useState(exercise?.name || '');
   const [category, setCategory] = useState(exercise?.category || '');
   const [newCategory, setNewCategory] = useState('');
   const [details, setDetails] = useState(exercise?.details || '');
+  const [showHistory, setShowHistory] = useState(
+    exercise?.showHistory !== undefined ? exercise.showHistory : getDefaultShowHistory(exercise?.category || '')
+  );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [existingCategories, setExistingCategories] = useState<string[]>([]);
   const [isCustom, setIsCustom] = useState(true);
@@ -48,7 +56,8 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
         ...exercise,
         name,
         category: finalCategory,
-        details: details.trim() || undefined
+        details: details.trim() || undefined,
+        showHistory
       });
     } else if (!isEditing) {
       // Create new custom exercise
@@ -57,6 +66,7 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
         name,
         category: finalCategory,
         details: details.trim() || undefined,
+        showHistory,
         isCustom: true
       });
     }
@@ -125,7 +135,11 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
               {[...existingCategories].sort((a, b) => a.localeCompare(b)).map(cat => (
                 <button
                   key={cat}
-                  onClick={() => canEdit && setCategory(cat)}
+                  onClick={() => {
+                    if (!canEdit) return;
+                    setCategory(cat);
+                    if (!isEditing) setShowHistory(getDefaultShowHistory(cat));
+                  }}
                   disabled={!canEdit}
                   className={`pill transition-all duration-200 ${
                     category === cat && !newCategory
@@ -159,6 +173,25 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
               className={`input resize-none ${!canEdit ? 'bg-surface-100 text-surface-500 cursor-not-allowed' : ''}`}
               placeholder="Add notes, instructions, or tips for this exercise..."
             />
+          </div>
+
+          {/* Show History Toggle */}
+          <div className={`flex items-center justify-between p-4 bg-surface-50 rounded-xl ${!canEdit ? 'opacity-60' : ''}`}>
+            <div>
+              <p className="text-sm font-semibold text-surface-700">Show previous performance</p>
+              <p className="text-xs text-surface-500 mt-0.5">Display last session's sets during workouts</p>
+            </div>
+            <button
+              onClick={() => canEdit && setShowHistory(!showHistory)}
+              disabled={!canEdit}
+              className={`relative w-12 h-7 rounded-full transition-colors ${
+                showHistory ? 'bg-primary-500' : 'bg-surface-300'
+              } ${!canEdit ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                showHistory ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
           </div>
         </div>
 
