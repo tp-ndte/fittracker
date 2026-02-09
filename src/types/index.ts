@@ -3,6 +3,7 @@ export interface Exercise {
   id: string;
   name: string;
   category: string;
+  exerciseType?: 'weight' | 'time'; // 'weight' = kg tracking (default), 'time' = duration tracking
   details?: string; // Free text notes/instructions about the exercise
   showHistory?: boolean; // Show previous performance during workouts (default: Strength=ON, Mobility/Warm Up=OFF)
   isCustom?: boolean;
@@ -31,11 +32,12 @@ export interface Program {
   archivedAt?: string;
 }
 
-// Set - a single set within an exercise (reps x weight)
+// Set - a single set within an exercise (reps x weight or reps x duration)
 export interface SessionSet {
   id: string;
   reps: number;
   weight: number;
+  duration?: number; // seconds, for time-based exercises
   completed: boolean;
 }
 
@@ -72,6 +74,7 @@ export interface WorkoutExercise {
   defaultSets: number;
   defaultReps: number;
   defaultWeight?: number;
+  defaultDuration?: number; // seconds, for time-based exercises
   supersetGroupId?: string;
   supersetOrder?: number;
   notes?: string;

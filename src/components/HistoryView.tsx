@@ -1,11 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Session, SessionExercise } from '../types';
+import { Session, SessionExercise, Exercise } from '../types';
 import { loadSessions, deleteSession } from '../utils/storage';
+import { getAllExercises } from '../utils/exerciseUtils';
+import { formatDuration } from '../utils/formatTime';
 import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, isValid } from 'date-fns';
 import { SessionLogger } from './SessionLogger';
 
 export function HistoryView() {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month'>('all');
@@ -19,7 +22,12 @@ export function HistoryView() {
 
   useEffect(() => {
     fetchSessions();
+    getAllExercises().then(setAllExercises);
   }, []);
+
+  const getExerciseType = (exerciseId: string): 'weight' | 'time' => {
+    return allExercises.find(ex => ex.id === exerciseId)?.exerciseType || 'weight';
+  };
 
   const handleDeleteSession = async (sessionId: string) => {
     await deleteSession(sessionId);
@@ -76,11 +84,14 @@ export function HistoryView() {
     let totalVolume = 0;
 
     session.exercises.forEach(ex => {
+      const isTimeBased = getExerciseType(ex.exerciseId) === 'time';
       ex.sets.forEach(set => {
         totalSets++;
         if (set.completed) {
           completedSets++;
-          totalVolume += set.reps * set.weight;
+          if (!isTimeBased) {
+            totalVolume += set.reps * set.weight;
+          }
         }
       });
     });
@@ -114,7 +125,9 @@ export function HistoryView() {
               {idx + 1}
             </span>
             <span className={set.completed ? 'text-surface-700' : 'text-surface-400'}>
-              {set.reps} reps @ {set.weight} kgs
+              {getExerciseType(exercise.exerciseId) === 'time'
+                ? `${set.reps} × ${formatDuration(set.duration || 0)}`
+                : `${set.reps} reps @ ${set.weight} kgs`}
             </span>
           </div>
         ))}

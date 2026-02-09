@@ -21,6 +21,7 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
   const [category, setCategory] = useState(exercise?.category || '');
   const [newCategory, setNewCategory] = useState('');
   const [details, setDetails] = useState(exercise?.details || '');
+  const [exerciseType, setExerciseType] = useState<'weight' | 'time'>(exercise?.exerciseType || 'weight');
   const [showHistory, setShowHistory] = useState(
     exercise?.showHistory !== undefined ? exercise.showHistory : getDefaultShowHistory(exercise?.category || '')
   );
@@ -56,6 +57,7 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
         ...exercise,
         name,
         category: finalCategory,
+        exerciseType,
         details: details.trim() || undefined,
         showHistory
       });
@@ -65,6 +67,7 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
         id: generateExerciseId(name),
         name,
         category: finalCategory,
+        exerciseType,
         details: details.trim() || undefined,
         showHistory,
         isCustom: true
@@ -160,6 +163,35 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
                 placeholder="Or enter a new category"
               />
             )}
+          </div>
+
+          {/* Exercise Type */}
+          <div>
+            <label className="block text-sm font-semibold text-surface-700 mb-2">Exercise Type</label>
+            <div className="flex gap-3">
+              <button
+                onClick={() => canEdit && setExerciseType('weight')}
+                disabled={!canEdit}
+                className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-200 ${
+                  exerciseType === 'weight'
+                    ? 'bg-primary-500 text-white shadow-sm'
+                    : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
+                } ${!canEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
+              >
+                Weight (kg)
+              </button>
+              <button
+                onClick={() => canEdit && setExerciseType('time')}
+                disabled={!canEdit}
+                className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-200 ${
+                  exerciseType === 'time'
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
+                } ${!canEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
+              >
+                Time (duration)
+              </button>
+            </div>
           </div>
 
           {/* Details */}

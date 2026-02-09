@@ -112,7 +112,7 @@ export const getSessionsByExercise = async (exerciseId: string): Promise<Session
 export interface ExerciseHistory {
   date: string;
   sessionName: string;
-  sets: { reps: number; weight: number; completed: boolean }[];
+  sets: { reps: number; weight: number; duration?: number; completed: boolean }[];
   notes?: string;
 }
 
@@ -133,6 +133,7 @@ export const getLastExerciseHistory = async (exerciseId: string, excludeSessionI
         sets: exerciseData.sets.map(s => ({
           reps: s.reps,
           weight: s.weight,
+          duration: s.duration,
           completed: s.completed
         })),
         notes: exerciseData.notes
@@ -320,6 +321,7 @@ export const loadCustomExercises = async (): Promise<Exercise[]> => {
     id: row.id,
     name: row.name,
     category: row.category,
+    exerciseType: row.exercise_type || 'weight',
     details: row.details,
     showHistory: row.show_history,
     isCustom: true,
@@ -338,6 +340,7 @@ export const addCustomExercise = async (exercise: Exercise): Promise<void> => {
     name: exercise.name,
     category: exercise.category,
     details: exercise.details,
+    exercise_type: exercise.exerciseType || 'weight',
     show_history: exercise.showHistory,
     created_at: now,
     updated_at: now
@@ -354,6 +357,7 @@ export const updateCustomExercise = async (exerciseId: string, updatedExercise: 
       name: updatedExercise.name,
       category: updatedExercise.category,
       details: updatedExercise.details,
+      exercise_type: updatedExercise.exerciseType || 'weight',
       show_history: updatedExercise.showHistory,
       updated_at: now
     })

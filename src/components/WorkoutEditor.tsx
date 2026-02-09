@@ -43,13 +43,19 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
     return matchesCategory && matchesSearch && notAlreadyAdded;
   });
 
+  const getExerciseType = (exerciseId: string): 'weight' | 'time' => {
+    return allExercises.find(ex => ex.id === exerciseId)?.exerciseType || 'weight';
+  };
+
   const addExercise = (exercise: Exercise) => {
+    const isTimeBased = exercise.exerciseType === 'time';
     const newExercise: WorkoutExercise = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       exerciseId: exercise.id,
       exerciseName: exercise.name,
       defaultSets: 3,
-      defaultReps: 10
+      defaultReps: isTimeBased ? 1 : 10,
+      defaultDuration: isTimeBased ? 30 : undefined
     };
     setExercises([...exercises, newExercise]);
     setShowExercisePicker(false);
@@ -62,7 +68,7 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
     setSelectedForSuperset(new Set(selectedForSuperset));
   };
 
-  const updateExercise = (exerciseId: string, field: 'defaultSets' | 'defaultReps', value: number) => {
+  const updateExercise = (exerciseId: string, field: 'defaultSets' | 'defaultReps' | 'defaultDuration', value: number) => {
     setExercises(exercises.map(ex =>
       ex.id === exerciseId ? { ...ex, [field]: value } : ex
     ));
@@ -317,16 +323,29 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
                                   min="1"
                                 />
                               </div>
-                              <div className="flex items-center gap-2">
-                                <label className="text-sm text-surface-500 font-medium">Reps:</label>
-                                <input
-                                  type="number"
-                                  value={ex.defaultReps}
-                                  onChange={(e) => updateExercise(ex.id, 'defaultReps', Number(e.target.value))}
-                                  className="w-16 px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-center font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                  min="1"
-                                />
-                              </div>
+                              {getExerciseType(ex.exerciseId) === 'time' ? (
+                                <div className="flex items-center gap-2">
+                                  <label className="text-sm text-surface-500 font-medium">Sec:</label>
+                                  <input
+                                    type="number"
+                                    value={ex.defaultDuration || 30}
+                                    onChange={(e) => updateExercise(ex.id, 'defaultDuration', Number(e.target.value))}
+                                    className="w-16 px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-center font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                    min="1"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <label className="text-sm text-surface-500 font-medium">Reps:</label>
+                                  <input
+                                    type="number"
+                                    value={ex.defaultReps}
+                                    onChange={(e) => updateExercise(ex.id, 'defaultReps', Number(e.target.value))}
+                                    className="w-16 px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-center font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                    min="1"
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -388,16 +407,29 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
                             min="1"
                           />
                         </div>
-                        <div className="flex items-center gap-2">
-                          <label className="text-sm text-surface-500 font-medium">Reps:</label>
-                          <input
-                            type="number"
-                            value={ex.defaultReps}
-                            onChange={(e) => updateExercise(ex.id, 'defaultReps', Number(e.target.value))}
-                            className="w-16 px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-center font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                            min="1"
-                          />
-                        </div>
+                        {getExerciseType(ex.exerciseId) === 'time' ? (
+                          <div className="flex items-center gap-2">
+                            <label className="text-sm text-surface-500 font-medium">Sec:</label>
+                            <input
+                              type="number"
+                              value={ex.defaultDuration || 30}
+                              onChange={(e) => updateExercise(ex.id, 'defaultDuration', Number(e.target.value))}
+                              className="w-16 px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-center font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                              min="1"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <label className="text-sm text-surface-500 font-medium">Reps:</label>
+                            <input
+                              type="number"
+                              value={ex.defaultReps}
+                              onChange={(e) => updateExercise(ex.id, 'defaultReps', Number(e.target.value))}
+                              className="w-16 px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-center font-medium focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                              min="1"
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

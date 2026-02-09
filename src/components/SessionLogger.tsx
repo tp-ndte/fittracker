@@ -3,6 +3,7 @@ import { Session, SessionExercise, Workout, Exercise, Program } from '../types';
 import { getAllExercises, getAllCategories } from '../utils/exerciseUtils';
 import { addSession, updateSession, deleteSession, getLastExerciseHistory, ExerciseHistory, incrementProgramWorkoutCount } from '../utils/storage';
 import { format } from 'date-fns';
+import { formatDuration } from '../utils/formatTime';
 import { ExerciseStats } from './ExerciseStats';
 
 interface SessionLoggerProps {
@@ -22,7 +23,8 @@ function workoutToExercises(workout: Workout): SessionExercise[] {
     sets: Array.from({ length: wEx.defaultSets }, (_, i) => ({
       id: `${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`,
       reps: wEx.defaultReps,
-      weight: wEx.defaultWeight || 0,
+      weight: wEx.defaultDuration ? 0 : (wEx.defaultWeight || 0),
+      duration: wEx.defaultDuration,
       completed: false
     })),
     supersetGroupId: wEx.supersetGroupId,
@@ -93,6 +95,26 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
     loadData();
   }, []);
 
+  // Patch time-based exercise defaults once allExercises loads (for workout-loaded exercises)
+  useEffect(() => {
+    if (allExercises.length > 0 && initialWorkout && !session) {
+      setExercises(prev => prev.map(ex => {
+        const exerciseDef = allExercises.find(e => e.id === ex.exerciseId);
+        if (exerciseDef?.exerciseType === 'time') {
+          return {
+            ...ex,
+            sets: ex.sets.map(s => ({
+              ...s,
+              duration: s.duration ?? 30,
+              weight: 0
+            }))
+          };
+        }
+        return ex;
+      }));
+    }
+  }, [allExercises.length]);
+
   useEffect(() => {
     const allIds = new Set(exercises.map(ex => ex.id));
     setExpandedExercises(allIds);
@@ -118,11 +140,18 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
     const exercise = allExercises.find(ex => ex.id === exerciseId);
     if (!exercise) return;
 
+    const isTimeBased = exercise.exerciseType === 'time';
     const newExercise: SessionExercise = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       exerciseId: exercise.id,
       exerciseName: exercise.name,
-      sets: [{ id: `${Date.now()}-1`, reps: 10, weight: 0, completed: false }],
+      sets: [{
+        id: `${Date.now()}-1`,
+        reps: isTimeBased ? 1 : 10,
+        weight: 0,
+        duration: isTimeBased ? 30 : undefined,
+        completed: false
+      }],
       notes: ''
     };
 
@@ -153,6 +182,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
             id: `${Date.now()}-${ex.sets.length}`,
             reps: lastSet?.reps || 10,
             weight: lastSet?.weight || 0,
+            duration: lastSet?.duration,
             completed: false
           }]
         };
@@ -170,7 +200,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
     }));
   };
 
-  const updateSet = (exerciseId: string, setId: string, field: 'reps' | 'weight', value: number) => {
+  const updateSet = (exerciseId: string, setId: string, field: 'reps' | 'weight' | 'duration', value: number) => {
     setExercises(exercises.map(ex => {
       if (ex.id === exerciseId) {
         return {
@@ -415,6 +445,10 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
     return category !== 'warm up' && category !== 'mobility';
   };
 
+  const getExerciseType = (exerciseId: string): 'weight' | 'time' => {
+    return allExercises.find(ex => ex.id === exerciseId)?.exerciseType || 'weight';
+  };
+
   // Calculate progress
   const totalExercises = exercises.length;
   const completedCount = completedExercises.size;
@@ -524,7 +558,12 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
                 </div>
                 <div className="text-sm font-medium text-surface-700">
                   {history.sets.map((s, i) => (
-                    <span key={i}>{i > 0 && ' | '}{s.reps}×{s.weight}kg</span>
+                    <span key={i}>
+                      {i > 0 && ' | '}
+                      {getExerciseType(exercise.exerciseId) === 'time'
+                        ? `${s.reps}×${formatDuration(s.duration || 0)}`
+                        : `${s.reps}×${s.weight}kg`}
+                    </span>
                   ))}
                 </div>
                 {history.notes && (
@@ -561,14 +600,28 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
                       className="w-16 input input-sm text-center font-semibold"
                     />
                     <span className="text-sm text-surface-500">reps</span>
-                    <input
-                      type="number"
-                      value={set.weight}
-                      onChange={(e) => updateSet(exercise.id, set.id, 'weight', Number(e.target.value))}
-                      className="w-16 input input-sm text-center font-semibold"
-                      step="0.5"
-                    />
-                    <span className="text-sm text-surface-500">kg</span>
+                    {getExerciseType(exercise.exerciseId) === 'time' ? (
+                      <>
+                        <input
+                          type="number"
+                          value={set.duration || 0}
+                          onChange={(e) => updateSet(exercise.id, set.id, 'duration', Number(e.target.value))}
+                          className="w-20 input input-sm text-center font-semibold"
+                        />
+                        <span className="text-sm text-surface-500">sec</span>
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          type="number"
+                          value={set.weight}
+                          onChange={(e) => updateSet(exercise.id, set.id, 'weight', Number(e.target.value))}
+                          className="w-16 input input-sm text-center font-semibold"
+                          step="0.5"
+                        />
+                        <span className="text-sm text-surface-500">kg</span>
+                      </>
+                    )}
                   </div>
                   {exercise.sets.length > 1 && (
                     <button
