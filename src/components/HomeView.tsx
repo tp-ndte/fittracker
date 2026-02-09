@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Workout, Program } from '../types';
-import { loadActiveProgram, getNextProgramWorkout, getWorkoutById } from '../utils/storage';
+import { Workout, Program, Session } from '../types';
+import { loadActiveProgram, getNextProgramWorkout, getWorkoutById, loadSessions } from '../utils/storage';
 import { SessionLogger } from './SessionLogger';
 import { ProgramManager } from './ProgramManager';
+import { format } from 'date-fns';
 
 interface HomeViewProps {
   onNavigate?: (view: string) => void;
@@ -13,10 +14,29 @@ export function HomeView({ onNavigate }: HomeViewProps) {
   const [loadingProgram, setLoadingProgram] = useState(true);
   const [showProgramManager, setShowProgramManager] = useState(false);
   const [programSessionWorkout, setProgramSessionWorkout] = useState<Workout | null>(null);
+  const [lastWorkoutDate, setLastWorkoutDate] = useState<string | null>(null);
 
   const loadData = async () => {
-    const programData = await loadActiveProgram();
+    const [programData, sessions] = await Promise.all([
+      loadActiveProgram(),
+      loadSessions()
+    ]);
     setActiveProgram(programData);
+
+    // Find the most recent session that belongs to this program
+    if (programData && sessions.length > 0) {
+      const programSessions = sessions
+        .filter((s: Session) => s.programId === programData.id)
+        .sort((a: Session, b: Session) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      if (programSessions.length > 0) {
+        setLastWorkoutDate(programSessions[0].date);
+      } else {
+        setLastWorkoutDate(null);
+      }
+    } else {
+      setLastWorkoutDate(null);
+    }
+
     setLoadingProgram(false);
   };
 
@@ -76,9 +96,12 @@ export function HomeView({ onNavigate }: HomeViewProps) {
                     </div>
                     <button
                       onClick={() => setShowProgramManager(true)}
-                      className="text-xs font-medium text-primary-600 hover:text-primary-700 px-3 py-1.5 rounded-lg hover:bg-primary-50 transition-colors"
+                      className="w-8 h-8 rounded-lg text-surface-400 hover:text-primary-600 hover:bg-primary-50 flex items-center justify-center transition-colors"
                     >
-                      Manage
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
                     </button>
                   </div>
 
@@ -97,19 +120,28 @@ export function HomeView({ onNavigate }: HomeViewProps) {
                   </div>
 
                   {/* Individual workout progress */}
-                  <div className="text-sm text-surface-600 mb-4">
+                  <div className="space-y-1.5 mb-4">
                     {[...activeProgram.workouts]
                       .sort((a, b) => a.sequenceOrder - b.sequenceOrder)
-                      .map((w, i, arr) => (
-                        <span key={w.workoutId}>
-                          <span className={w.completedCount >= w.targetCount ? 'text-success-600 font-medium' : ''}>
-                            {w.workoutName}: {w.completedCount}/{w.targetCount}
+                      .map((w) => (
+                        <div key={w.workoutId} className="flex items-center justify-between text-sm">
+                          <span className={`${w.completedCount >= w.targetCount ? 'text-success-600 font-medium' : 'text-surface-600'}`}>
+                            {w.workoutName}
                           </span>
-                          {i < arr.length - 1 && <span className="text-surface-300"> &bull; </span>}
-                        </span>
+                          <span className={`font-medium ${w.completedCount >= w.targetCount ? 'text-success-600' : 'text-surface-500'}`}>
+                            {w.completedCount}/{w.targetCount}
+                          </span>
+                        </div>
                       ))
                     }
                   </div>
+
+                  {/* Last workout date */}
+                  {lastWorkoutDate && (
+                    <p className="text-xs text-surface-400 mb-4">
+                      Last workout: {format(new Date(lastWorkoutDate), 'MMM d, yyyy')}
+                    </p>
+                  )}
 
                   {/* Next workout or completion message */}
                   {programComplete ? (

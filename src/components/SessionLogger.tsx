@@ -432,7 +432,9 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
       <div
         key={exercise.id}
         className={`${inSuperset ? 'bg-white' : 'card'} overflow-hidden ${
-          isCompleted ? 'bg-success-50 ring-2 ring-success-300' : ''
+          isCompleted
+            ? `ring-2 ring-success-300 ${isExpanded ? 'bg-success-50' : 'bg-success-100'}`
+            : ''
         }`}
       >
         {/* Accordion Header */}
@@ -451,7 +453,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
               </svg>
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className={`font-bold text-lg truncate ${isCompleted ? 'text-success-800' : 'text-surface-800'}`}>
+              <h3 className={`font-bold text-base leading-tight ${isCompleted ? 'text-success-800' : 'text-surface-800'}`}>
                 {exercise.exerciseName}
               </h3>
               <span className={`text-sm ${isCompleted ? 'text-success-600' : 'text-surface-500'}`}>
@@ -464,7 +466,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
               e.stopPropagation();
               setShowStatsFor({ id: exercise.exerciseId, name: exercise.exerciseName });
             }}
-            className="w-8 h-8 rounded-lg bg-primary-50 text-primary-500 flex items-center justify-center hover:bg-primary-100 transition-colors ml-2 flex-shrink-0"
+            className="w-8 h-8 rounded-lg bg-primary-50 text-primary-500 flex items-center justify-center hover:bg-primary-100 transition-colors ml-3 flex-shrink-0"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -475,7 +477,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
               e.stopPropagation();
               removeExercise(exercise.id);
             }}
-            className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors flex-shrink-0"
+            className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors ml-3 flex-shrink-0"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -701,7 +703,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
           </div>
 
           {/* Exercises */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             {getGroupedExercises().map((item) => {
               if ('type' in item && item.type === 'superset') {
                 const isComplete = isSupersetComplete(item.groupId);

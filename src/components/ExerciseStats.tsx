@@ -128,7 +128,7 @@ export function ExerciseStats({ exerciseId }: ExerciseStatsProps) {
           </div>
           <div className="h-36">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 20, right: 30, bottom: 5, left: 30 }}>
+              <LineChart data={chartData} margin={{ top: 30, right: 40, bottom: 5, left: 40 }}>
                 <YAxis domain={['dataMin - 2', 'dataMax + 2']} hide />
                 <Tooltip
                   content={({ active, payload }) => {
@@ -153,9 +153,21 @@ export function ExerciseStats({ exerciseId }: ExerciseStatsProps) {
                   <LabelList
                     dataKey="maxWeight"
                     position="top"
-                    offset={10}
-                    formatter={(v: number) => `${v}kg`}
-                    style={{ fontSize: 11, fontWeight: 600, fill: '#6B7280' }}
+                    offset={12}
+                    content={({ x, y, value }: any) => {
+                      return (
+                        <text
+                          x={x}
+                          y={y - 18}
+                          textAnchor="middle"
+                          fill="#6B7280"
+                          fontSize={11}
+                          fontWeight={600}
+                        >
+                          {value}kg
+                        </text>
+                      );
+                    }}
                   />
                 </Line>
               </LineChart>
