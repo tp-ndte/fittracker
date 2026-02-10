@@ -58,7 +58,7 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
         name,
         category: finalCategory,
         exerciseType,
-        details: details.trim() || undefined,
+        details: details.trim() || null,
         showHistory
       });
     } else if (!isEditing) {
@@ -68,7 +68,7 @@ export const ExerciseEditor = ({ exercise, onClose, onSave }: ExerciseEditorProp
         name,
         category: finalCategory,
         exerciseType,
-        details: details.trim() || undefined,
+        details: details.trim() || null,
         showHistory,
         isCustom: true
       });

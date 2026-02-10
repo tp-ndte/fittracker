@@ -4,7 +4,7 @@ export interface Exercise {
   name: string;
   category: string;
   exerciseType?: 'weight' | 'time'; // 'weight' = kg tracking (default), 'time' = duration tracking
-  details?: string; // Free text notes/instructions about the exercise
+  details?: string | null; // Free text notes/instructions about the exercise
   showHistory?: boolean; // Show previous performance during workouts (default: Strength=ON, Mobility/Warm Up=OFF)
   isCustom?: boolean;
   isDeleted?: boolean; // For soft-deleting built-in exercises
@@ -84,7 +84,7 @@ export interface WorkoutExercise {
 export interface Workout {
   id: string;
   name: string;
-  description?: string;
+  description?: string | null;
   category: 'Strength' | 'Mobility';
   exercises: WorkoutExercise[];
   favorite?: boolean;

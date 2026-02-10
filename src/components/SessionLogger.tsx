@@ -315,7 +315,7 @@ export function SessionLogger({ session, onClose, onSave, initialWorkout, progra
     });
   };
 
-  const getExerciseDetails = (exerciseId: string): string | undefined => {
+  const getExerciseDetails = (exerciseId: string): string | null | undefined => {
     return allExercises.find(ex => ex.id === exerciseId)?.details;
   };
 

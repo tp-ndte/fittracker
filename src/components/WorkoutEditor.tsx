@@ -132,7 +132,7 @@ export const WorkoutEditor = ({ workout, onClose, onSave }: WorkoutEditorProps) 
     const workoutData: Workout = {
       id: workout?.id || `workout-${Date.now()}`,
       name: name.trim(),
-      description: description.trim() || undefined,
+      description: description.trim() || null,
       category,
       exercises,
       createdAt: workout?.createdAt || new Date().toISOString(),
